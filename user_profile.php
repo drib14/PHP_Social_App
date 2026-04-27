@@ -60,82 +60,149 @@ $posts_stmt->execute();
 $posts_result = $posts_stmt->get_result();
 ?>
 
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card p-4 text-center">
-            <div class="avatar-placeholder mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
-                <?= strtoupper(substr($user['name'], 0, 1)) ?>
-            </div>
-            <h4 class="mb-1"><?= htmlspecialchars($user['name']) ?></h4>
-            <p class="text-muted small mb-3"><?= htmlspecialchars($user['email']) ?></p>
-
-            <div class="d-flex justify-content-center gap-3 mb-4">
-                <div>
-                    <strong class="d-block"><?= $followers_count ?></strong>
-                    <small class="text-muted">Followers</small>
-                </div>
-                <div>
-                    <strong class="d-block"><?= $following_count ?></strong>
-                    <small class="text-muted">Following</small>
-                </div>
-            </div>
-
+<!-- Profile Header (Facebook Style) -->
+<div class="card mb-4" style="overflow: hidden;">
+    <!-- Cover Photo Area -->
+    <div style="height: 250px; background: linear-gradient(135deg, #1e293b, var(--bg-hover)); border-bottom: 1px solid var(--border-color); position: relative;">
+        <!-- Placeholder for Cover Photo -->
+        <div class="position-absolute bottom-0 end-0 p-3">
             <?php if ($current_user_id == $profile_user_id): ?>
-                <a href="edit-profile.php" class="btn btn-outline-light w-100 rounded-pill"><i class="fa-solid fa-pen me-2"></i>Edit Profile</a>
-            <?php else: ?>
-                <form method="POST" action="follow.php">
-                    <input type="hidden" name="following_id" value="<?= $user['id'] ?>">
-                    <?php if ($is_following): ?>
-                        <button class="btn btn-secondary w-100 rounded-pill">Unfollow</button>
-                    <?php else: ?>
-                        <button class="btn btn-primary w-100 rounded-pill"><i class="fa-solid fa-user-plus me-2"></i>Follow</button>
-                    <?php endif; ?>
-                </form>
+                <button class="btn btn-sm btn-secondary"><i class="fa-solid fa-camera me-1"></i> Edit Cover Photo</button>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="col-md-8">
-        <h5 class="mb-3">Posts by <?= htmlspecialchars($user['name']) ?></h5>
+    <!-- Profile Info Area -->
+    <div class="px-4 pb-4 position-relative" style="margin-top: -60px;">
+        <div class="d-flex flex-column flex-md-row align-items-md-end gap-3">
+            <!-- Profile Picture -->
+            <div class="position-relative">
+                <div class="avatar-placeholder rounded-circle border border-4 border-dark" style="width: 140px; height: 140px; font-size: 3rem; background-color: var(--accent-color); border-color: var(--bg-secondary) !important;">
+                    <?= strtoupper(substr($user['name'], 0, 1)) ?>
+                </div>
+                <?php if ($current_user_id == $profile_user_id): ?>
+                <div class="position-absolute bottom-0 end-0 bg-secondary rounded-circle d-flex align-items-center justify-content-center cursor-pointer" style="width: 36px; height: 36px; right: 8px !important; bottom: 8px !important;">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Name & Meta -->
+            <div class="flex-grow-1 pb-2 text-center text-md-start mt-3 mt-md-0">
+                <h1 class="fw-bold mb-0"><?= htmlspecialchars($user['name']) ?></h1>
+                <div class="text-muted fw-semibold">
+                    <?= $followers_count ?> followers · <?= $following_count ?> following
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="pb-2 d-flex gap-2 justify-content-center justify-content-md-end w-100 w-md-auto mt-3 mt-md-0">
+                <?php if ($current_user_id == $profile_user_id): ?>
+                    <a href="create-post.php" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i> Add to story</a>
+                    <a href="edit-profile.php" class="btn btn-secondary"><i class="fa-solid fa-pen me-1"></i> Edit profile</a>
+                <?php else: ?>
+                    <form method="POST" action="follow.php" class="m-0">
+                        <input type="hidden" name="following_id" value="<?= $user['id'] ?>">
+                        <?php if ($is_following): ?>
+                            <button class="btn btn-secondary"><i class="fa-solid fa-user-check me-1"></i> Following</button>
+                        <?php else: ?>
+                            <button class="btn btn-primary"><i class="fa-solid fa-user-plus me-1"></i> Follow</button>
+                        <?php endif; ?>
+                    </form>
+                    <button class="btn btn-secondary"><i class="fa-brands fa-facebook-messenger me-1"></i> Message</button>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <hr class="border-secondary mt-4 mb-0">
+
+        <!-- Tabs -->
+        <div class="d-flex gap-4 mt-2 px-2 fw-semibold text-muted">
+            <div class="py-3 text-primary border-bottom border-3 border-primary" style="color: var(--accent-color) !important; border-color: var(--accent-color) !important;">Posts</div>
+            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">About</div>
+            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">Friends</div>
+            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">Photos</div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-5 d-none d-md-block">
+        <!-- Intro Card -->
+        <div class="card p-3 mb-3">
+            <h5 class="fw-bold mb-3">Intro</h5>
+            <p class="text-center text-muted mb-3"><?= htmlspecialchars($user['email']) ?></p>
+            <button class="btn btn-secondary w-100 mb-3 fw-bold">Edit bio</button>
+            <div class="d-flex align-items-center mb-3 text-muted">
+                <i class="fa-solid fa-clock me-2 fs-5"></i> Joined <?= date('F Y') ?>
+            </div>
+            <button class="btn btn-secondary w-100 fw-bold">Edit details</button>
+        </div>
+    </div>
+
+    <div class="col-md-7 feed-container pt-0">
         <?php if ($posts_result->num_rows == 0): ?>
             <div class="card p-4 text-center text-muted">
                 <i class="fa-solid fa-ghost fs-1 mb-3"></i>
-                <p>No posts yet.</p>
+                <p class="fw-bold fs-5 text-white">No posts available</p>
             </div>
         <?php else: ?>
             <?php while ($post = $posts_result->fetch_assoc()): ?>
-                <div class="card p-3 mb-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="avatar-placeholder me-2" style="width: 32px; height: 32px; font-size: 1rem;">
+                <div class="card mb-4 pb-2">
+                    <div class="p-3 pb-2 d-flex align-items-center">
+                        <div class="avatar-placeholder me-2">
                             <?= strtoupper(substr($user['name'], 0, 1)) ?>
                         </div>
-                        <strong><?= htmlspecialchars($user['name']) ?></strong>
-                        <small class="text-muted ms-auto"><?= date('M j, Y, g:i a', strtotime($post['created_at'])) ?></small>
+                        <div>
+                            <div class="text-white fw-bold text-decoration-none">
+                                <?= htmlspecialchars($user['name']) ?>
+                            </div>
+                            <div class="text-muted" style="font-size: 0.8rem;"><?= date('M j \a\t g:i a', strtotime($post['created_at'])) ?> · <i class="fa-solid fa-earth-americas"></i></div>
+                        </div>
                     </div>
 
-                    <p class="mt-2 mb-3"><?= nl2br(htmlspecialchars($post['content'])) ?></p>
+                    <div class="px-3 pb-2 fs-6">
+                        <?= nl2br(htmlspecialchars($post['content'])) ?>
+                    </div>
 
-                    <div class="d-flex gap-2 border-top border-secondary pt-3 mt-3">
-                        <form method="POST" action="like.php" class="d-inline">
+                    <?php if ($post['like_count'] > 0 || $post['comment_count'] > 0): ?>
+                    <div class="px-3 py-2 text-muted d-flex justify-content-between border-bottom border-secondary" style="font-size: 0.9rem;">
+                        <div>
+                            <?php if ($post['like_count'] > 0): ?>
+                            <i class="fa-solid fa-thumbs-up text-primary bg-white rounded-circle p-1" style="font-size: 0.6rem;"></i> <?= $post['like_count'] ?>
+                            <?php endif; ?>
+                        </div>
+                        <div>
+                            <?php if ($post['comment_count'] > 0): ?>
+                            <span class="ms-3 cursor-pointer" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.remove('d-none')">
+                                <?= $post['comment_count'] ?> comments
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="border-bottom border-secondary mx-3"></div>
+                    <?php endif; ?>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex px-3 py-1">
+                        <form method="POST" action="like.php" class="w-50 me-1">
                             <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
-                            <button class="btn btn-sm btn-outline-danger rounded-pill">
-                                <i class="fa-heart <?= ($post['like_count'] > 0) ? 'fa-solid' : 'fa-regular' ?>"></i> <?= $post['like_count'] ?>
+                            <!-- Need to check if user liked this specifically, missing from original profile SQL but we fallback -->
+                            <button class="action-btn">
+                                <i class="fa-regular fa-thumbs-up me-1"></i> Like
                             </button>
                         </form>
-                        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
-                            <i class="fa-regular fa-comment"></i> <?= $post['comment_count'] ?>
+
+                        <button class="action-btn w-50" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
+                            <i class="fa-regular fa-message me-1"></i> Comment
                         </button>
                     </div>
 
-                    <!-- Comments Section -->
-                    <div id="comments-<?= $post['id'] ?>" class="d-none mt-4">
-                        <!-- Add Comment Form -->
-                        <form method="POST" action="comment.php" class="d-flex gap-2 mb-3">
-                            <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
-                            <input type="text" name="content" class="form-control rounded-pill" placeholder="Write a comment..." required>
-                            <button type="submit" class="btn btn-primary rounded-pill"><i class="fa-solid fa-paper-plane"></i></button>
-                        </form>
+                    <div class="border-bottom border-secondary mx-3 mb-2"></div>
 
+                    <!-- Comments Section -->
+                    <div id="comments-<?= $post['id'] ?>" class="px-3 d-none">
                         <!-- Fetch and Display Comments -->
                         <?php
                         $comments_stmt = $conn->prepare("
@@ -151,20 +218,41 @@ $posts_result = $posts_stmt->get_result();
                         ?>
 
                         <?php while ($comment = $comments_result->fetch_assoc()): ?>
-                            <div class="d-flex mb-2 align-items-start">
+                            <div class="d-flex mb-3 align-items-start">
                                 <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>">
-                                    <div class="avatar-placeholder me-2 mt-1" style="width: 24px; height: 24px; font-size: 0.8rem;">
+                                    <div class="avatar-placeholder me-2" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                         <?= strtoupper(substr($comment['name'], 0, 1)) ?>
                                     </div>
                                 </a>
-                                <div class="bg-dark rounded-3 p-2 px-3">
-                                    <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>" class="text-white fw-bold small text-decoration-none d-block">
+                                <div style="background-color: var(--bg-hover); border-radius: 18px; padding: 8px 12px; display: inline-block; max-width: calc(100% - 40px);">
+                                    <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>" class="text-white fw-bold text-decoration-none d-block" style="font-size: 0.85rem;">
                                         <?= htmlspecialchars($comment['name']) ?>
                                     </a>
-                                    <span class="small"><?= htmlspecialchars($comment['content']) ?></span>
+                                    <span style="font-size: 0.9rem; word-break: break-word;"><?= htmlspecialchars($comment['content']) ?></span>
                                 </div>
                             </div>
                         <?php endwhile; ?>
+
+                        <!-- Add Comment Form -->
+                        <?php
+                        // Get current user name for comment input placeholder
+                        $user_stmt = $conn->prepare("SELECT name FROM users WHERE id = ?");
+                        $user_stmt->bind_param("i", $current_user_id);
+                        $user_stmt->execute();
+                        $current_user_name = $user_stmt->get_result()->fetch_assoc()['name'];
+                        ?>
+                        <div class="d-flex gap-2 mt-3 mb-2 align-items-start">
+                            <div class="avatar-placeholder" style="width: 32px; height: 32px; font-size: 0.9rem; flex-shrink: 0;">
+                                <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                            </div>
+                            <form method="POST" action="comment.php" class="w-100 position-relative">
+                                <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
+                                <input type="text" name="content" class="form-control" placeholder="Write a comment..." required style="padding-right: 40px; border-radius: 20px;">
+                                <button type="submit" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-primary text-decoration-none" style="color: var(--accent-color) !important;">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             <?php endwhile; ?>

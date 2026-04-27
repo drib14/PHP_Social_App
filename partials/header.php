@@ -16,112 +16,154 @@
 
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark px-3 mb-4 sticky-top">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold text-white" href="dashboard.php">
-                <i class="fa-solid fa-fire text-primary me-2"></i>MiniSocial
+    <nav class="navbar sticky-top d-flex justify-content-between align-items-center">
+        <!-- Left: Brand & Search -->
+        <div class="d-flex align-items-center gap-2" style="width: 25%;">
+            <a class="navbar-brand fw-bold mb-0" href="dashboard.php">
+                <i class="fa-brands fa-envira"></i> <!-- Emerald icon -->
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="dashboard.php"><i class="fa-solid fa-house me-1"></i> Feed</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="search.php"><i class="fa-solid fa-search me-1"></i> Search</a>
-                    </li>
-                </ul>
-                <div class="d-flex align-items-center gap-3">
-                    <!-- Notifications Dropdown -->
-                    <?php
-                    $unread_count = 0;
-                    $notifications_result = null;
-                    if (isset($_SESSION['user_id'])) {
-                        $current_user_id = $_SESSION['user_id'];
-                        // Get unread count
-                        $count_stmt = $conn->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE");
-                        $count_stmt->bind_param("i", $current_user_id);
-                        $count_stmt->execute();
-                        $unread_count = $count_stmt->get_result()->fetch_assoc()['count'];
+            <?php if (isset($_SESSION['user_id'])): ?>
+            <form method="GET" action="search.php" class="d-none d-md-flex position-relative">
+                <i class="fa-solid fa-search position-absolute text-muted" style="left: 12px; top: 50%; transform: translateY(-50%);"></i>
+                <input type="text" name="q" class="form-control ps-5" placeholder="Search MiniSocial..." style="width: 240px; background-color: var(--bg-hover) !important;">
+            </form>
+            <?php endif; ?>
+        </div>
 
-                        // Get latest notifications
-                        $notif_stmt = $conn->prepare("
-                            SELECT n.*, u.name as actor_name
-                            FROM notifications n
-                            JOIN users u ON u.id = n.actor_id
-                            WHERE n.user_id = ?
-                            ORDER BY n.created_at DESC LIMIT 5
-                        ");
-                        $notif_stmt->bind_param("i", $current_user_id);
-                        $notif_stmt->execute();
-                        $notifications_result = $notif_stmt->get_result();
-                    }
-                    ?>
-                    <?php if (isset($_SESSION['user_id'])): ?>
-                    <div class="dropdown">
-                        <button class="btn btn-link nav-link text-white dropdown-toggle position-relative" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fa-solid fa-bell fs-5"></i>
-                            <?php if ($unread_count > 0): ?>
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
-                                    <?= $unread_count ?>
-                                </span>
-                            <?php endif; ?>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-2" aria-labelledby="notificationsDropdown" style="width: 300px;">
-                            <li><h6 class="dropdown-header text-white border-bottom border-secondary mb-2">Notifications</h6></li>
+        <!-- Center: Nav Icons -->
+        <?php if (isset($_SESSION['user_id'])): ?>
+        <?php
+            $current_page = basename($_SERVER['PHP_SELF']);
+        ?>
+        <div class="nav-icon-container d-none d-md-flex">
+            <a href="dashboard.php" class="nav-icon <?= ($current_page == 'dashboard.php') ? 'active' : '' ?>">
+                <i class="fa-solid fa-house"></i>
+            </a>
+            <a href="dashboard.php?feed=following" class="nav-icon <?= (isset($_GET['feed']) && $_GET['feed'] == 'following') ? 'active' : '' ?>">
+                <i class="fa-solid fa-user-group"></i>
+            </a>
+            <a href="search.php" class="nav-icon d-md-none <?= ($current_page == 'search.php') ? 'active' : '' ?>">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </a>
+        </div>
+        <?php endif; ?>
 
-                            <?php if ($notifications_result && $notifications_result->num_rows > 0): ?>
-                                <?php while ($notif = $notifications_result->fetch_assoc()): ?>
-                                    <?php
-                                        $icon = 'fa-bell';
-                                        $text = '';
-                                        $link = '#';
+        <!-- Right: Profile & Notifications -->
+        <div class="d-flex align-items-center justify-content-end gap-2" style="width: 25%;">
+            <?php
+            $unread_count = 0;
+            $notifications_result = null;
+            if (isset($_SESSION['user_id'])) {
+                $current_user_id = $_SESSION['user_id'];
+                // Get unread count
+                $count_stmt = $conn->prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE");
+                $count_stmt->bind_param("i", $current_user_id);
+                $count_stmt->execute();
+                $unread_count = $count_stmt->get_result()->fetch_assoc()['count'];
 
-                                        if ($notif['type'] == 'like') {
-                                            $icon = 'fa-heart text-danger';
-                                            $text = "liked your post.";
-                                            // Ideally link to post, but linking to profile for now
-                                            $link = "user_profile.php?id=" . $notif['actor_id'];
-                                        } elseif ($notif['type'] == 'comment') {
-                                            $icon = 'fa-comment text-primary';
-                                            $text = "commented on your post.";
-                                            $link = "user_profile.php?id=" . $notif['actor_id'];
-                                        } elseif ($notif['type'] == 'follow') {
-                                            $icon = 'fa-user-plus text-success';
-                                            $text = "started following you.";
-                                            $link = "user_profile.php?id=" . $notif['actor_id'];
-                                        }
-                                    ?>
-                                    <li>
-                                        <a class="dropdown-item d-flex align-items-center gap-2 <?= $notif['is_read'] ? 'text-muted' : 'fw-bold' ?>" href="read_notification.php?id=<?= $notif['id'] ?>&redirect=<?= urlencode($link) ?>">
-                                            <i class="fa-solid <?= $icon ?>"></i>
-                                            <div class="text-wrap" style="font-size: 0.85rem;">
-                                                <span><strong><?= htmlspecialchars($notif['actor_name']) ?></strong> <?= $text ?></span>
-                                                <div class="text-muted" style="font-size: 0.75rem;"><?= date('M j, g:i a', strtotime($notif['created_at'])) ?></div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                <?php endwhile; ?>
-                                <li><hr class="dropdown-divider border-secondary"></li>
-                                <li>
-                                    <form method="POST" action="read_notification.php" class="px-2">
-                                        <input type="hidden" name="mark_all" value="1">
-                                        <button type="submit" class="btn btn-sm btn-outline-light w-100">Mark all as read</button>
-                                    </form>
-                                </li>
-                            <?php else: ?>
-                                <li><span class="dropdown-item text-muted text-center py-3">No new notifications</span></li>
-                            <?php endif; ?>
-                        </ul>
-                    </div>
+                // Get latest notifications
+                $notif_stmt = $conn->prepare("
+                    SELECT n.*, u.name as actor_name
+                    FROM notifications n
+                    JOIN users u ON u.id = n.actor_id
+                    WHERE n.user_id = ?
+                    ORDER BY n.created_at DESC LIMIT 5
+                ");
+                $notif_stmt->bind_param("i", $current_user_id);
+                $notif_stmt->execute();
+                $notifications_result = $notif_stmt->get_result();
+            }
+            ?>
+            <?php if (isset($_SESSION['user_id'])): ?>
 
-                    <a href="user_profile.php" class="btn btn-sm btn-outline-light rounded-pill"><i class="fa-solid fa-user me-1"></i> Profile</a>
-                    <a href="logout.php" class="btn btn-sm btn-danger rounded-pill"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
+            <!-- Notifications Dropdown -->
+            <div class="dropdown">
+                <button class="nav-action-btn position-relative" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-bell"></i>
+                    <?php if ($unread_count > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem; margin-left: -5px; margin-top: 5px;">
+                            <?= $unread_count ?>
+                        </span>
                     <?php endif; ?>
-                </div>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-2 mt-2" aria-labelledby="notificationsDropdown" style="width: 320px;">
+                    <li><h5 class="dropdown-header text-white mb-1 fw-bold fs-5">Notifications</h5></li>
+
+                    <?php if ($notifications_result && $notifications_result->num_rows > 0): ?>
+                        <?php while ($notif = $notifications_result->fetch_assoc()): ?>
+                            <?php
+                                $icon = 'fa-bell';
+                                $bg_color = 'var(--accent-color)';
+                                $text = '';
+                                $link = '#';
+
+                                if ($notif['type'] == 'like') {
+                                    $icon = 'fa-heart';
+                                    $bg_color = 'var(--danger)';
+                                    $text = "liked your post.";
+                                    $link = "user_profile.php?id=" . $notif['actor_id'];
+                                } elseif ($notif['type'] == 'comment') {
+                                    $icon = 'fa-comment';
+                                    $bg_color = 'var(--accent-color)';
+                                    $text = "commented on your post.";
+                                    $link = "user_profile.php?id=" . $notif['actor_id'];
+                                } elseif ($notif['type'] == 'follow') {
+                                    $icon = 'fa-user-plus';
+                                    $bg_color = '#3b82f6';
+                                    $text = "started following you.";
+                                    $link = "user_profile.php?id=" . $notif['actor_id'];
+                                }
+                            ?>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-3 <?= $notif['is_read'] ? 'opacity-75' : 'fw-bold bg-hover' ?>" href="read_notification.php?id=<?= $notif['id'] ?>&redirect=<?= urlencode($link) ?>">
+                                    <div class="position-relative">
+                                        <div class="avatar-placeholder" style="width: 48px; height: 48px;">
+                                            <?= strtoupper(substr($notif['actor_name'], 0, 1)) ?>
+                                        </div>
+                                        <div class="position-absolute bottom-0 end-0 rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; background-color: <?= $bg_color ?>; border: 2px solid var(--bg-secondary);">
+                                            <i class="fa-solid <?= $icon ?> text-white" style="font-size: 0.5rem;"></i>
+                                        </div>
+                                    </div>
+                                    <div class="text-wrap flex-grow-1" style="font-size: 0.9rem;">
+                                        <span class="text-white"><strong><?= htmlspecialchars($notif['actor_name']) ?></strong> <?= $text ?></span>
+                                        <div class="text-primary" style="font-size: 0.8rem; color: var(--accent-color) !important;"><?= date('M j, g:i a', strtotime($notif['created_at'])) ?></div>
+                                    </div>
+                                    <?php if (!$notif['is_read']): ?>
+                                        <div class="rounded-circle" style="width: 10px; height: 10px; background-color: var(--accent-color);"></div>
+                                    <?php endif; ?>
+                                </a>
+                            </li>
+                        <?php endwhile; ?>
+                        <li><hr class="dropdown-divider border-secondary my-2"></li>
+                        <li>
+                            <form method="POST" action="read_notification.php" class="px-2">
+                                <input type="hidden" name="mark_all" value="1">
+                                <button type="submit" class="btn text-center w-100 text-white" style="background-color: var(--bg-hover);">Mark all as read</button>
+                            </form>
+                        </li>
+                    <?php else: ?>
+                        <li><span class="dropdown-item text-center py-4 text-muted">No new notifications</span></li>
+                    <?php endif; ?>
+                </ul>
             </div>
+
+            <a href="user_profile.php" class="nav-action-btn">
+                <i class="fa-solid fa-user"></i>
+            </a>
+
+            <!-- Menu Dropdown (Logout) -->
+            <div class="dropdown">
+                <button class="nav-action-btn" type="button" id="menuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-2 mt-2" aria-labelledby="menuDropdown">
+                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="user_profile.php"><i class="fa-solid fa-user"></i> My Profile</a></li>
+                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="search.php"><i class="fa-solid fa-search"></i> Search Users</a></li>
+                    <li><hr class="dropdown-divider border-secondary"></li>
+                    <li><a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="logout.php"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                </ul>
+            </div>
+            <?php endif; ?>
         </div>
     </nav>
 

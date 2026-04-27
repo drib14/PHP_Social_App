@@ -1,83 +1,202 @@
+/* Dark Theme & Emerald Color Scheme (Modern Facebook Clone) */
+:root {
+    --bg-primary: #18191a;
+    --bg-secondary: #242526;
+    --bg-hover: #3a3b3c;
+    --text-primary: #e4e6eb;
+    --text-secondary: #b0b3b8;
+    --accent-color: #10b981; /* Emerald */
+    --accent-hover: #059669;
+    --border-color: #3e4042;
+    --danger: #ef4444;
+}
+
 body {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: #e2e8f0;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-family: 'Poppins', sans-serif;
     min-height: 100vh;
 }
 
+/* Cards (Facebook style: flat, slightly rounded, specific background) */
 .card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    color: #e2e8f0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--bg-secondary);
+    border: none;
+    border-radius: 8px;
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    margin-bottom: 1rem;
 }
 
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-}
-
+/* Inputs & Textareas */
 textarea,
 input,
 .form-control {
-    background: #0f172a !important;
-    color: #fff !important;
-    border: 1px solid #334155 !important;
-    border-radius: 12px !important;
+    background-color: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
+    border: none !important;
+    border-radius: 20px !important; /* Pill shape for inputs */
+    padding: 10px 15px;
 }
 
 textarea:focus,
 input:focus,
 .form-control:focus {
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
-    border-color: #6366f1 !important;
+    box-shadow: none !important;
+    outline: none;
 }
 
+/* Buttons */
 .btn-primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background-color: var(--accent-color);
     border: none;
-    border-radius: 20px;
-    font-weight: 500;
-    transition: opacity 0.2s ease;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #fff;
+    transition: background-color 0.2s ease;
 }
 
 .btn-primary:hover {
-    opacity: 0.9;
+    background-color: var(--accent-hover);
+    color: #fff;
 }
 
+.btn-secondary {
+    background-color: var(--bg-hover);
+    border: none;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.btn-secondary:hover {
+    background-color: #4e4f50;
+    color: var(--text-primary);
+}
+
+.btn-outline-primary {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Interaction Buttons (Like, Comment) */
+.action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    text-align: center;
+}
+
+.action-btn:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.action-btn.active-like {
+    color: var(--accent-color);
+}
+
+/* Navbar */
 .navbar {
-    background: rgba(15, 23, 42, 0.8) !important;
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    background-color: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 16px;
+    height: 56px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.nav-link {
-    color: #cbd5e1 !important;
-    font-weight: 500;
-    transition: color 0.2s ease;
+.navbar-brand {
+    color: var(--accent-color) !important;
+    font-size: 1.5rem;
 }
 
-.nav-link:hover, .nav-link.active {
-    color: #6366f1 !important;
+/* Nav Icons (Middle section) */
+.nav-icon-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
 }
 
+.nav-icon {
+    color: var(--text-secondary);
+    font-size: 1.4rem;
+    padding: 8px 30px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+    text-decoration: none;
+}
+
+.nav-icon:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.nav-icon.active {
+    color: var(--accent-color);
+}
+
+.nav-icon.active::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; /* align with navbar bottom */
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--accent-color);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Right Nav Actions */
+.nav-action-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    border: none;
+}
+
+.nav-action-btn:hover {
+    background-color: #4e4f50;
+    color: var(--text-primary);
+}
+
+/* Dropdown */
 .dropdown-menu-dark {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    padding: 8px;
 }
 
 .dropdown-item {
-    color: #e2e8f0;
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 8px;
     transition: background-color 0.2s ease;
 }
 
 .dropdown-item:hover {
-    background-color: #334155;
-    color: #fff;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 /* Custom scrollbar */
@@ -86,36 +205,58 @@ input:focus,
 }
 
 ::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: var(--bg-hover);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #4e4f50;
 }
 
 a {
     text-decoration: none;
-    color: #6366f1;
+    color: var(--accent-color);
 }
 
 a:hover {
-    color: #8b5cf6;
+    color: var(--accent-hover);
 }
 
 .avatar-placeholder {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background-color: var(--accent-color);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 1.2rem;
-    color: white;
+    font-size: 1rem;
+    color: #18191a;
+}
+
+/* Feed specific layout */
+.feed-container {
+    max-width: 590px;
+    margin: 0 auto;
+    padding-top: 20px;
+}
+
+/* Create Post Box */
+.create-post-trigger {
+    background-color: var(--bg-hover);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    padding: 10px 15px;
+    cursor: pointer;
+    flex-grow: 1;
+    transition: background-color 0.2s ease;
+}
+
+.create-post-trigger:hover {
+    background-color: #4e4f50;
 }
