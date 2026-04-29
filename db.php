@@ -3,7 +3,7 @@ require_once 'config.php';
 
 $host = "localhost";
 $user = "root";
-$pass = ""; // Change this if your XAMPP/WAMP MySQL root user has a password!
+$pass = "your_password"; // Change this if your XAMPP/WAMP MySQL root user has a password!
 $db   = "auth_app";
 
 // Enable mysqli exceptions
