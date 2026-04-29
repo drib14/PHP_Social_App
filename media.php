@@ -10,18 +10,25 @@ if (!isset($_SESSION['user_id'])) {
 $type = $_GET['type'] ?? '';
 $id = $_GET['id'] ?? 0;
 
-if (!in_array($type, ['post', 'message']) || !$id) {
+if (!in_array($type, ['post', 'message', 'profile', 'cover']) || !$id) {
     header("HTTP/1.0 404 Not Found");
     exit;
 }
 
 if ($type === 'post') {
     $stmt = $conn->prepare("SELECT media_data, media_type, media_name FROM posts WHERE id = ?");
+    $stmt->bind_param("i", $id);
+} elseif ($type === 'profile') {
+    $stmt = $conn->prepare("SELECT profile_pic as media_data, profile_pic_type as media_type, 'profile.jpg' as media_name FROM users WHERE id = ?");
+    $stmt->bind_param("i", $id);
+} elseif ($type === 'cover') {
+    $stmt = $conn->prepare("SELECT cover_photo as media_data, cover_photo_type as media_type, 'cover.jpg' as media_name FROM users WHERE id = ?");
+    $stmt->bind_param("i", $id);
 } else {
     $stmt = $conn->prepare("SELECT media_data, media_type, media_name FROM messages WHERE id = ?");
+    $stmt->bind_param("i", $id);
 }
 
-$stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
 

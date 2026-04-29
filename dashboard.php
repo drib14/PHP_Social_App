@@ -30,41 +30,50 @@ if ($feed_type === 'following') {
     $stmt->execute();
     $result = $stmt->get_result();
 } else {
-    // Global Feed: Public posts + Own posts + Posts from people you follow (if audience is followers)
+    // Global Feed: Public posts + Own posts + Posts from people you follow (if audience is followers) + Group Posts you belong to
     $sql = "
         SELECT posts.*, users.name, users.id as post_user_id,
         (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
         (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count,
-        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = ?) as user_liked
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = ?) as user_liked,
+        user_groups.name as group_name
         FROM posts
         JOIN users ON users.id = posts.user_id
-        WHERE posts.audience = 'public'
+        LEFT JOIN user_groups ON user_groups.id = posts.group_id
+        WHERE (posts.group_id IS NULL AND (posts.audience = 'public'
            OR posts.user_id = ?
-           OR (posts.audience = 'followers' AND EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id))
+           OR (posts.audience = 'followers' AND EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id))))
+        OR (posts.group_id IS NOT NULL AND EXISTS (SELECT 1 FROM group_members WHERE user_id = ? AND group_id = posts.group_id))
         ORDER BY posts.created_at DESC
     ";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iii", $current_user_id, $current_user_id, $current_user_id);
+    $stmt->bind_param("iiii", $current_user_id, $current_user_id, $current_user_id, $current_user_id);
     $stmt->execute();
     $result = $stmt->get_result();
 }
 ?>
 
 <?php
-// Get current user name for avatar placeholder
-$user_stmt = $conn->prepare("SELECT name FROM users WHERE id = ?");
+// Get current user name and profile pic
+$user_stmt = $conn->prepare("SELECT name, profile_pic_type FROM users WHERE id = ?");
 $user_stmt->bind_param("i", $current_user_id);
 $user_stmt->execute();
-$current_user_name = $user_stmt->get_result()->fetch_assoc()['name'];
+$current_user_row = $user_stmt->get_result()->fetch_assoc();
+$current_user_name = $current_user_row['name'];
+$has_profile_pic = !empty($current_user_row['profile_pic_type']);
 ?>
 
 <div class="feed-container">
     <!-- Post Creation Box (Facebook Style) -->
     <div class="card p-3 mb-4">
         <div class="d-flex align-items-center mb-3">
-            <div class="avatar-placeholder me-2">
-                <?= strtoupper(substr($current_user_name, 0, 1)) ?>
-            </div>
+            <?php if ($has_profile_pic): ?>
+                <img src="media.php?type=profile&id=<?= $current_user_id ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
+            <?php else: ?>
+                <div class="avatar-placeholder me-2">
+                    <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                </div>
+            <?php endif; ?>
             <div class="create-post-trigger text-muted w-100" data-bs-toggle="modal" data-bs-target="#createPostModal">
                 What's on your mind, <?= explode(' ', htmlspecialchars($current_user_name))[0] ?>?
             </div>
@@ -149,20 +158,94 @@ $current_user_name = $user_stmt->get_result()->fetch_assoc()['name'];
         </div>
     <?php endif; ?>
 
+    <?php
+        // Fetch posts again properly to join user info including profile_pic_type (we should ideally update the sql query, but for speed we will fetch per post if missing, actually let's just update the query above)
+    ?>
     <?php while ($post = $result->fetch_assoc()): ?>
-    <div class="card mb-4 pb-2">
-        <div class="p-3 pb-2 d-flex align-items-center">
-            <a href="user_profile.php?id=<?= $post['post_user_id'] ?>">
-                <div class="avatar-placeholder me-2">
-                    <?= strtoupper(substr($post['name'], 0, 1)) ?>
-                </div>
-            </a>
-            <div>
-                <a href="user_profile.php?id=<?= $post['post_user_id'] ?>" class="text-white fw-bold text-decoration-none">
-                    <?= htmlspecialchars($post['name']) ?>
+    <div class="card mb-4 pb-2 position-relative">
+        <div class="p-3 pb-2 d-flex justify-content-between align-items-start">
+            <div class="d-flex align-items-center">
+                <a href="user_profile.php?id=<?= $post['post_user_id'] ?>">
+                    <?php
+                        $pic_stmt = $conn->prepare("SELECT profile_pic_type FROM users WHERE id = ?");
+                        $pic_stmt->bind_param("i", $post['post_user_id']);
+                        $pic_stmt->execute();
+                        $pic_res = $pic_stmt->get_result()->fetch_assoc();
+                    ?>
+                    <?php if (!empty($pic_res['profile_pic_type'])): ?>
+                        <img src="media.php?type=profile&id=<?= $post['post_user_id'] ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
+                    <?php else: ?>
+                        <div class="avatar-placeholder me-2" style="width: 40px; height: 40px; font-size: 1rem;">
+                            <?= strtoupper(substr($post['name'], 0, 1)) ?>
+                        </div>
+                    <?php endif; ?>
                 </a>
-                <div class="text-muted" style="font-size: 0.8rem;"><?= date('M j \a\t g:i a', strtotime($post['created_at'])) ?> · <i class="fa-solid fa-earth-americas"></i></div>
+                <div>
+                    <a href="user_profile.php?id=<?= $post['post_user_id'] ?>" class="text-white fw-bold text-decoration-none">
+                        <?= htmlspecialchars($post['name']) ?>
+                    </a>
+                    <?php if (isset($post['group_id']) && $post['group_id']): ?>
+                        <span class="text-muted mx-1">▶</span>
+                        <a href="view_group.php?id=<?= $post['group_id'] ?>" class="text-white fw-bold text-decoration-none">
+                            <?= htmlspecialchars($post['group_name']) ?>
+                        </a>
+                    <?php endif; ?>
+
+                    <?php
+                        $audience_icon = 'fa-earth-americas';
+                        if ($post['audience'] === 'followers') $audience_icon = 'fa-user-group';
+                        if ($post['audience'] === 'only_me') $audience_icon = 'fa-lock';
+                        if (isset($post['group_id']) && $post['group_id']) $audience_icon = 'fa-users';
+                    ?>
+                    <div class="text-muted" style="font-size: 0.8rem;">
+                        <?= date('M j \a\t g:i a', strtotime($post['created_at'])) ?> ·
+                        <i class="fa-solid <?= $audience_icon ?>"></i>
+                        <?= isset($post['is_edited']) && $post['is_edited'] ? ' · Edited' : '' ?>
+                    </div>
+                </div>
             </div>
+
+            <?php if ($post['post_user_id'] == $current_user_id): ?>
+            <!-- Post Options Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-link text-muted p-0 text-decoration-none" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-ellipsis"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-1" style="min-width: 150px;">
+                    <li><button class="dropdown-item d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#editPostModal<?= $post['id'] ?>"><i class="fa-solid fa-pen"></i> Edit post</button></li>
+                    <li><hr class="dropdown-divider border-secondary my-1"></li>
+                    <li>
+                        <form action="crud_actions.php" method="POST" class="m-0" onsubmit="return confirm('Are you sure you want to delete this post?');">
+                            <input type="hidden" name="action" value="delete_post">
+                            <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
+                            <button type="submit" class="dropdown-item text-danger d-flex align-items-center gap-2"><i class="fa-solid fa-trash"></i> Move to trash</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Edit Post Modal -->
+            <div class="modal fade" id="editPostModal<?= $post['id'] ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                        <div class="modal-header border-bottom border-secondary">
+                            <h5 class="modal-title fw-bold">Edit post</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="crud_actions.php" method="POST">
+                            <input type="hidden" name="action" value="edit_post">
+                            <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
+                            <div class="modal-body">
+                                <textarea name="content" class="form-control border-secondary bg-dark text-white" rows="4" required><?= htmlspecialchars($post['content']) ?></textarea>
+                            </div>
+                            <div class="modal-footer border-top border-secondary">
+                                <button type="submit" class="btn btn-primary w-100">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <div class="px-3 pb-2 fs-6">

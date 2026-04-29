@@ -11,7 +11,7 @@ $current_user_id = $_SESSION['user_id'];
 $profile_user_id = $_GET['id'] ?? $current_user_id;
 
 // Fetch user info
-$stmt = $conn->prepare("SELECT id, name, email FROM users WHERE id=?");
+$stmt = $conn->prepare("SELECT id, name, email, bio, profile_pic_type, cover_photo_type FROM users WHERE id=?");
 $stmt->bind_param("i", $profile_user_id);
 $stmt->execute();
 $user_result = $stmt->get_result();
@@ -63,11 +63,10 @@ $posts_result = $posts_stmt->get_result();
 <!-- Profile Header (Facebook Style) -->
 <div class="card mb-4" style="overflow: hidden;">
     <!-- Cover Photo Area -->
-    <div style="height: 250px; background: linear-gradient(135deg, #1e293b, var(--bg-hover)); border-bottom: 1px solid var(--border-color); position: relative;">
-        <!-- Placeholder for Cover Photo -->
+    <div style="height: 250px; background: linear-gradient(135deg, #1e293b, var(--bg-hover)); border-bottom: 1px solid var(--border-color); position: relative; <?= $user['cover_photo_type'] ? 'background-image: url(media.php?type=cover&id='.$user['id'].'); background-size: cover; background-position: center;' : '' ?>">
         <div class="position-absolute bottom-0 end-0 p-3">
             <?php if ($current_user_id == $profile_user_id): ?>
-                <button class="btn btn-sm btn-secondary"><i class="fa-solid fa-camera me-1"></i> Edit Cover Photo</button>
+                <a href="edit-profile.php" class="btn btn-sm btn-secondary"><i class="fa-solid fa-camera me-1"></i> Edit Cover Photo</a>
             <?php endif; ?>
         </div>
     </div>
@@ -77,13 +76,17 @@ $posts_result = $posts_stmt->get_result();
         <div class="d-flex flex-column flex-md-row align-items-md-end gap-3">
             <!-- Profile Picture -->
             <div class="position-relative">
-                <div class="avatar-placeholder rounded-circle border border-4 border-dark" style="width: 140px; height: 140px; font-size: 3rem; background-color: var(--accent-color); border-color: var(--bg-secondary) !important;">
-                    <?= strtoupper(substr($user['name'], 0, 1)) ?>
-                </div>
+                <?php if ($user['profile_pic_type']): ?>
+                    <img src="media.php?type=profile&id=<?= $user['id'] ?>" class="rounded-circle border border-4 border-dark object-fit-cover bg-dark" style="width: 140px; height: 140px; border-color: var(--bg-secondary) !important;">
+                <?php else: ?>
+                    <div class="avatar-placeholder rounded-circle border border-4 border-dark" style="width: 140px; height: 140px; font-size: 3rem; background-color: var(--accent-color); border-color: var(--bg-secondary) !important;">
+                        <?= strtoupper(substr($user['name'], 0, 1)) ?>
+                    </div>
+                <?php endif; ?>
                 <?php if ($current_user_id == $profile_user_id): ?>
-                <div class="position-absolute bottom-0 end-0 bg-secondary rounded-circle d-flex align-items-center justify-content-center cursor-pointer" style="width: 36px; height: 36px; right: 8px !important; bottom: 8px !important;">
+                <a href="edit-profile.php" class="position-absolute bottom-0 end-0 bg-secondary rounded-circle d-flex align-items-center justify-content-center cursor-pointer text-white text-decoration-none" style="width: 36px; height: 36px; right: 8px !important; bottom: 8px !important;">
                     <i class="fa-solid fa-camera"></i>
-                </div>
+                </a>
                 <?php endif; ?>
             </div>
 
@@ -262,18 +265,67 @@ $posts_result = $posts_stmt->get_result();
                         ?>
 
                         <?php while ($comment = $comments_result->fetch_assoc()): ?>
-                            <div class="d-flex mb-3 align-items-start">
+                            <div class="d-flex mb-3 align-items-start position-relative group-hover-trigger">
                                 <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>">
                                     <div class="avatar-placeholder me-2" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                         <?= strtoupper(substr($comment['name'], 0, 1)) ?>
                                     </div>
                                 </a>
-                                <div style="background-color: var(--bg-hover); border-radius: 18px; padding: 8px 12px; display: inline-block; max-width: calc(100% - 40px);">
-                                    <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>" class="text-white fw-bold text-decoration-none d-block" style="font-size: 0.85rem;">
-                                        <?= htmlspecialchars($comment['name']) ?>
-                                    </a>
-                                    <span style="font-size: 0.9rem; word-break: break-word;"><?= htmlspecialchars($comment['content']) ?></span>
+                                <div>
+                                    <div style="background-color: var(--bg-hover); border-radius: 18px; padding: 8px 12px; display: inline-block; max-width: calc(100% - 40px);">
+                                        <a href="user_profile.php?id=<?= $comment['comment_user_id'] ?>" class="text-white fw-bold text-decoration-none d-block" style="font-size: 0.85rem;">
+                                            <?= htmlspecialchars($comment['name']) ?>
+                                        </a>
+                                        <span style="font-size: 0.9rem; word-break: break-word;"><?= htmlspecialchars($comment['content']) ?></span>
+                                    </div>
+                                    <div class="ms-3 mt-1 d-flex gap-3 text-muted" style="font-size: 0.75rem; font-weight: bold;">
+                                        <span class="cursor-pointer hover-underline">Like</span>
+                                        <span class="cursor-pointer hover-underline">Reply</span>
+                                        <span><?= date('g:i a', strtotime($comment['created_at'])) ?></span>
+                                        <?= $comment['is_edited'] ? '<span>Edited</span>' : '' ?>
+                                    </div>
                                 </div>
+
+                                <?php if ($comment['comment_user_id'] == $current_user_id): ?>
+                                <!-- Comment Options Dropdown -->
+                                <div class="dropdown position-absolute" style="right: 0; top: 10px;">
+                                    <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none opacity-50 hover-opacity-100" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fa-solid fa-ellipsis"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark p-1" style="min-width: 150px; font-size: 0.9rem;">
+                                        <li><button class="dropdown-item d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#editCommentModal<?= $comment['id'] ?>"><i class="fa-solid fa-pen"></i> Edit</button></li>
+                                        <li>
+                                            <form action="crud_actions.php" method="POST" class="m-0" onsubmit="return confirm('Delete this comment?');">
+                                                <input type="hidden" name="action" value="delete_comment">
+                                                <input type="hidden" name="comment_id" value="<?= $comment['id'] ?>">
+                                                <button type="submit" class="dropdown-item text-danger d-flex align-items-center gap-2"><i class="fa-solid fa-trash"></i> Delete</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!-- Edit Comment Modal -->
+                                <div class="modal fade" id="editCommentModal<?= $comment['id'] ?>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                                            <div class="modal-header border-bottom border-secondary">
+                                                <h5 class="modal-title fw-bold">Edit comment</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="crud_actions.php" method="POST">
+                                                <input type="hidden" name="action" value="edit_comment">
+                                                <input type="hidden" name="comment_id" value="<?= $comment['id'] ?>">
+                                                <div class="modal-body">
+                                                    <input type="text" name="content" class="form-control bg-dark border-secondary text-white" value="<?= htmlspecialchars($comment['content']) ?>" required>
+                                                </div>
+                                                <div class="modal-footer border-top border-secondary">
+                                                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         <?php endwhile; ?>
 

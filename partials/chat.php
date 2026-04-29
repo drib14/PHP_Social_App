@@ -256,6 +256,8 @@
 
         <form id="chat-form" class="chat-input-area m-0">
             <input type="hidden" id="chat-receiver-id" value="">
+            <input type="hidden" id="chat-group-id" value="">
+            <input type="hidden" id="chat-type" value="user">
 
             <label for="chat-file-upload" class="chat-action-btn mb-0">
                 <i class="fa-solid fa-circle-plus"></i>
@@ -312,16 +314,24 @@
         startPolling('list');
     }
 
-    function openConversation(userId, userName, userInitial) {
-        activeChatId = userId;
+    function openConversation(id, name, initial, type) {
+        activeChatId = id;
         viewList.classList.remove('d-flex');
         viewList.classList.add('d-none');
         viewConvo.classList.remove('d-none');
         viewConvo.classList.add('d-flex');
 
-        document.getElementById('convo-name').innerText = userName;
-        document.getElementById('convo-avatar').innerText = userInitial;
-        document.getElementById('chat-receiver-id').value = userId;
+        document.getElementById('convo-name').innerText = name;
+        document.getElementById('convo-avatar').innerText = initial;
+
+        document.getElementById('chat-type').value = type;
+        if (type === 'user') {
+            document.getElementById('chat-receiver-id').value = id;
+            document.getElementById('chat-group-id').value = '';
+        } else {
+            document.getElementById('chat-receiver-id').value = '';
+            document.getElementById('chat-group-id').value = id;
+        }
 
         convoMessages.innerHTML = '<div class="text-center p-4 text-muted">Loading...</div>';
 
@@ -329,11 +339,25 @@
         startPolling('convo');
 
         // Mark chathead as read visually
-        const head = document.getElementById(`chathead-${userId}`);
+        const head = document.getElementById(`chathead-${id}`);
         if(head) {
             const badge = head.querySelector('.chathead-badge');
             if(badge) badge.remove();
         }
+    }
+
+    async function unsendMessage(messageId) {
+        if(!confirm('Unsend this message for everyone?')) return;
+
+        const formData = new FormData();
+        formData.append('message_id', messageId);
+
+        await fetch('api_chat.php?action=unsend_message', {
+            method: 'POST',
+            body: formData
+        });
+
+        loadMessages(true); // reload messages silently
     }
 
     // Polling Logic
@@ -368,16 +392,16 @@
             let unreadCount = 0;
 
             data.forEach((c, index) => {
-                const initial = c.name.charAt(0).toUpperCase();
+                const initial = c.name ? c.name.charAt(0).toUpperCase() : 'G';
                 const isUnread = (c.last_read_status == "0" || c.last_read_status === 0);
 
                 // Build List Item
                 const div = document.createElement('div');
                 div.className = `chat-contact ${isUnread ? 'unread' : ''}`;
-                div.onclick = () => openConversation(c.id, c.name, initial);
+                div.onclick = () => openConversation(c.id, c.name, initial, c.type);
 
                 div.innerHTML = `
-                    <div class="avatar-placeholder me-3" style="width: 48px; height: 48px; flex-shrink: 0;">${initial}</div>
+                    <div class="avatar-placeholder me-3" style="width: 48px; height: 48px; flex-shrink: 0; background-color: ${c.type === 'group' ? 'var(--bg-hover)' : 'var(--accent-color)'}; color: ${c.type === 'group' ? 'var(--text-primary)' : 'var(--bg-primary)'};">${initial}</div>
                     <div class="flex-grow-1 overflow-hidden">
                         <div class="fw-bold ${isUnread ? 'text-white' : ''}">${c.name}</div>
                         <div class="text-truncate text-muted" style="font-size: 0.8rem; ${isUnread ? 'color: var(--text-primary) !important; font-weight: bold;' : ''}">
@@ -395,7 +419,7 @@
                     head.id = `chathead-${c.id}`;
                     head.onclick = () => {
                         if(chatPopup.style.display !== 'flex') chatPopup.style.display = 'flex';
-                        openConversation(c.id, c.name, initial);
+                        openConversation(c.id, c.name, initial, c.type);
                     };
                     head.innerHTML = `
                         <div class="fw-bold fs-4">${initial}</div>
@@ -419,8 +443,9 @@
 
     async function loadMessages(silent = false) {
         if (!activeChatId) return;
+        const type = document.getElementById('chat-type').value;
         try {
-            const response = await fetch(`api_chat.php?action=get_messages&user_id=${activeChatId}`);
+            const response = await fetch(`api_chat.php?action=get_messages&chat_type=${type}&target_id=${activeChatId}`);
             const data = await response.json();
 
             // Only update DOM if we have new data or initial load
@@ -430,8 +455,18 @@
             convoMessages.innerHTML = '';
 
             data.forEach(m => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `d-flex flex-column mb-1 ${m.is_mine ? 'align-items-end' : 'align-items-start'}`;
+
+                if (type === 'group' && !m.is_mine) {
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 'text-muted small ms-2 mb-1';
+                    nameDiv.innerText = m.sender_name;
+                    wrapper.appendChild(nameDiv);
+                }
+
                 const div = document.createElement('div');
-                div.className = `chat-message ${m.is_mine ? 'me' : 'them'}`;
+                div.className = `chat-message position-relative ${m.is_mine ? 'me' : 'them'}`;
 
                 let contentHTML = '';
                 if (m.message) {
@@ -454,7 +489,22 @@
                 }
 
                 div.innerHTML = contentHTML;
-                convoMessages.appendChild(div);
+
+                if (m.is_mine && !m.is_deleted) {
+                    div.innerHTML += `
+                        <div class="position-absolute dropdown" style="left: -20px; top: 50%; transform: translateY(-50%); display: none;" onmouseover="this.style.display='block'" id="opts-${m.id}">
+                            <i class="fa-solid fa-ellipsis-vertical text-muted cursor-pointer" data-bs-toggle="dropdown"></i>
+                            <ul class="dropdown-menu dropdown-menu-dark p-1 shadow">
+                                <li><a class="dropdown-item text-danger" href="#" onclick="unsendMessage(${m.id})">Unsend</a></li>
+                            </ul>
+                        </div>
+                    `;
+                    div.onmouseover = () => document.getElementById(`opts-${m.id}`).style.display = 'block';
+                    div.onmouseout = () => document.getElementById(`opts-${m.id}`).style.display = 'none';
+                }
+
+                wrapper.appendChild(div);
+                convoMessages.appendChild(wrapper);
             });
 
             if (data.length === 0) {
@@ -499,6 +549,7 @@
         e.preventDefault();
         const input = document.getElementById('chat-message-input');
         const receiverId = document.getElementById('chat-receiver-id').value;
+        const chatGroupId = document.getElementById('chat-group-id').value;
         const msgText = input.value.trim();
 
         if (!msgText && !selectedFile) return;
@@ -507,8 +558,10 @@
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
 
         const formData = new FormData();
-        formData.append('receiver_id', receiverId);
+        if (receiverId) formData.append('receiver_id', receiverId);
+        if (chatGroupId) formData.append('chat_group_id', chatGroupId);
         formData.append('message', msgText);
+
         if (selectedFile) {
             formData.append('media', selectedFile);
         }

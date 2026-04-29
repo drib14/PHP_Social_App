@@ -13,9 +13,9 @@ $action = $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'get_conversations') {
-        // Fetch users the current user has messaged or received messages from
+        // Fetch 1-on-1 users
         $sql = "
-            SELECT u.id, u.name,
+            SELECT u.id, u.name, 'user' as type,
                    (SELECT message FROM messages
                     WHERE (sender_id = ? AND receiver_id = u.id) OR (sender_id = u.id AND receiver_id = ?)
                     ORDER BY created_at DESC LIMIT 1) as last_message,
@@ -27,11 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     ORDER BY created_at DESC LIMIT 1) as last_time
             FROM users u
             WHERE u.id != ? AND u.id IN (
-                SELECT sender_id FROM messages WHERE receiver_id = ?
+                SELECT sender_id FROM messages WHERE receiver_id = ? AND chat_group_id IS NULL
                 UNION
-                SELECT receiver_id FROM messages WHERE sender_id = ?
+                SELECT receiver_id FROM messages WHERE sender_id = ? AND chat_group_id IS NULL
             )
-            ORDER BY last_time DESC
         ";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("iiiiiiii", $user_id, $user_id, $user_id, $user_id, $user_id, $user_id, $user_id, $user_id);
@@ -43,9 +42,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $conversations[] = $row;
         }
 
+        // Fetch Chat Groups the user belongs to
+        $group_sql = "
+            SELECT cg.id, cg.name, 'group' as type,
+                   (SELECT message FROM messages WHERE chat_group_id = cg.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                   1 as last_read_status,
+                   (SELECT created_at FROM messages WHERE chat_group_id = cg.id ORDER BY created_at DESC LIMIT 1) as last_time
+            FROM chat_groups cg
+            JOIN chat_group_members cgm ON cg.id = cgm.chat_group_id
+            WHERE cgm.user_id = ?
+        ";
+        $group_stmt = $conn->prepare($group_sql);
+        $group_stmt->bind_param("i", $user_id);
+        $group_stmt->execute();
+        $group_result = $group_stmt->get_result();
+        while ($row = $group_result->fetch_assoc()) {
+            $conversations[] = $row;
+        }
+
+        // Sort both by time
+        usort($conversations, function($a, $b) {
+            return strtotime($b['last_time']) - strtotime($a['last_time']);
+        });
+
         // Also fetch mutual followers/following to start new chats
         $friends_sql = "
-            SELECT u.id, u.name
+            SELECT u.id, u.name, 'user' as type
             FROM users u
             JOIN follows f ON f.following_id = u.id
             WHERE f.follower_id = ?
@@ -54,17 +76,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $friends_stmt->bind_param("i", $user_id);
         $friends_stmt->execute();
         $friends_result = $friends_stmt->get_result();
-        $friends = [];
+
         while ($row = $friends_result->fetch_assoc()) {
             // Only add if not already in conversations
             $exists = false;
             foreach ($conversations as $c) {
-                if ($c['id'] == $row['id']) $exists = true;
+                if ($c['id'] == $row['id'] && $c['type'] == 'user') $exists = true;
             }
             if (!$exists) {
                 $row['last_message'] = 'Start a conversation';
                 $row['last_read_status'] = 1;
-                $conversations[] = $row;
+                $row['last_time'] = '1970-01-01 00:00:00';
+                $conversations[] = $row; // Add to end
             }
         }
 
@@ -72,33 +95,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
     elseif ($action === 'get_messages') {
-        $other_user_id = $_GET['user_id'] ?? 0;
+        $chat_type = $_GET['chat_type'] ?? 'user';
+        $target_id = $_GET['target_id'] ?? 0;
 
-        if (!$other_user_id) {
+        if (!$target_id) {
             http_response_code(400);
             exit;
         }
 
-        // Mark unread messages as read
-        $mark_read = $conn->prepare("UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ?");
-        $mark_read->bind_param("ii", $other_user_id, $user_id);
-        $mark_read->execute();
+        if ($chat_type === 'user') {
+            // Mark unread messages as read
+            $mark_read = $conn->prepare("UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ?");
+            $mark_read->bind_param("ii", $target_id, $user_id);
+            $mark_read->execute();
 
-        $sql = "
-            SELECT id, sender_id, receiver_id, message, media_type, media_name, created_at
-            FROM messages
-            WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
-            ORDER BY created_at ASC
-        ";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("iiii", $user_id, $other_user_id, $other_user_id, $user_id);
+            $sql = "
+                SELECT m.id, m.sender_id, m.receiver_id, m.message, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
+                FROM messages m
+                JOIN users u ON u.id = m.sender_id
+                WHERE (m.sender_id = ? AND m.receiver_id = ? AND m.chat_group_id IS NULL)
+                   OR (m.sender_id = ? AND m.receiver_id = ? AND m.chat_group_id IS NULL)
+                ORDER BY m.created_at ASC
+            ";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("iiii", $user_id, $target_id, $target_id, $user_id);
+        } else {
+            // Group Chat
+            $sql = "
+                SELECT m.id, m.sender_id, m.chat_group_id, m.message, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
+                FROM messages m
+                JOIN users u ON u.id = m.sender_id
+                WHERE m.chat_group_id = ?
+                ORDER BY m.created_at ASC
+            ";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $target_id);
+        }
+
         $stmt->execute();
         $result = $stmt->get_result();
 
         $messages = [];
         while ($row = $result->fetch_assoc()) {
-            // We do not send media_data itself in JSON, we will use the media.php endpoint
-            $row['has_media'] = !empty($row['media_type']);
+            if ($row['is_deleted']) {
+                $row['message'] = "<em>Message unsent</em>";
+                $row['has_media'] = false;
+            } else {
+                $row['has_media'] = !empty($row['media_type']);
+            }
             $row['is_mine'] = $row['sender_id'] == $user_id;
             $messages[] = $row;
         }
@@ -109,13 +153,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'send_message') {
-        $receiver_id = $_POST['receiver_id'] ?? 0;
+        $receiver_id = $_POST['receiver_id'] ?? null;
+        $chat_group_id = $_POST['chat_group_id'] ?? null;
         $message = trim($_POST['message'] ?? '');
 
-        if (!$receiver_id) {
+        if (!$receiver_id && !$chat_group_id) {
             http_response_code(400);
             exit;
         }
+
+        // If receiver ID is passed but it's empty string/0, convert to null
+        $receiver_id = $receiver_id ? $receiver_id : null;
+        $chat_group_id = $chat_group_id ? $chat_group_id : null;
 
         $media_data = null;
         $media_type = null;
@@ -129,16 +178,27 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($message !== '' || $media_data !== null) {
-            $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message, media_data, media_type, media_name) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iissss", $user_id, $receiver_id, $message, $media_data, $media_type, $media_name);
+            $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, chat_group_id, message, media_data, media_type, media_name) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            // Note: prepared statements don't like nulls mixed with param types perfectly sometimes, but 'iiissss' works if the php var is null
+            $stmt->bind_param("iiissss", $user_id, $receiver_id, $chat_group_id, $message, $media_data, $media_type, $media_name);
             if ($media_data !== null) {
-                $stmt->send_long_data(3, $media_data);
+                $stmt->send_long_data(4, $media_data);
             }
             $stmt->execute();
 
             echo json_encode(['status' => 'success', 'message_id' => $conn->insert_id]);
         } else {
             echo json_encode(['status' => 'empty']);
+        }
+        exit;
+    } elseif ($action === 'unsend_message') {
+        $msg_id = $_POST['message_id'] ?? 0;
+
+        if ($msg_id) {
+            $stmt = $conn->prepare("UPDATE messages SET is_deleted = 1, message = NULL, media_data = NULL, media_type = NULL, media_name = NULL WHERE id = ? AND sender_id = ?");
+            $stmt->bind_param("ii", $msg_id, $user_id);
+            $stmt->execute();
+            echo json_encode(['status' => 'success']);
         }
         exit;
     }
