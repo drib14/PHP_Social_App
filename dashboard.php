@@ -22,13 +22,15 @@ if ($feed_type === 'following') {
         JOIN users ON users.id = posts.user_id
         JOIN follows ON follows.following_id = posts.user_id
         WHERE follows.follower_id = ?
+        AND (posts.audience = 'public' OR posts.audience = 'followers' OR posts.user_id = ?)
         ORDER BY posts.created_at DESC
     ";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $current_user_id, $current_user_id);
+    $stmt->bind_param("iii", $current_user_id, $current_user_id, $current_user_id);
     $stmt->execute();
     $result = $stmt->get_result();
 } else {
+    // Global Feed: Public posts + Own posts + Posts from people you follow (if audience is followers)
     $sql = "
         SELECT posts.*, users.name, users.id as post_user_id,
         (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
@@ -36,10 +38,13 @@ if ($feed_type === 'following') {
         (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = ?) as user_liked
         FROM posts
         JOIN users ON users.id = posts.user_id
+        WHERE posts.audience = 'public'
+           OR posts.user_id = ?
+           OR (posts.audience = 'followers' AND EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id))
         ORDER BY posts.created_at DESC
     ";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $current_user_id);
+    $stmt->bind_param("iii", $current_user_id, $current_user_id, $current_user_id);
     $stmt->execute();
     $result = $stmt->get_result();
 }
@@ -87,20 +92,55 @@ $current_user_name = $user_stmt->get_result()->fetch_assoc()['name'];
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="avatar-placeholder me-2">
-                            <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                    <form action="create-post.php" method="POST" enctype="multipart/form-data">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="avatar-placeholder me-2">
+                                <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                            </div>
+                            <div>
+                                <div class="fw-bold mb-1"><?= htmlspecialchars($current_user_name) ?></div>
+                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                    <option value="public" selected>&#xf0ac; Public</option>
+                                    <option value="followers">&#xf0c0; Followers</option>
+                                    <option value="only_me">&#xf023; Only me</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="fw-bold"><?= htmlspecialchars($current_user_name) ?></div>
-                    </div>
-                    <form action="create-post.php" method="POST">
-                        <textarea name="content" class="form-control border-0 bg-transparent fs-5 px-0 text-white" rows="4" placeholder="What's on your mind, <?= explode(' ', htmlspecialchars($current_user_name))[0] ?>?" required style="resize: none;"></textarea>
-                        <button type="submit" class="btn btn-primary w-100 mt-3 py-2">Post</button>
+                        <textarea name="content" class="form-control border-0 bg-transparent fs-5 px-0 text-white" rows="4" placeholder="What's on your mind, <?= explode(' ', htmlspecialchars($current_user_name))[0] ?>?" style="resize: none; box-shadow: none;"></textarea>
+
+                        <!-- Media Upload Preview / Input -->
+                        <div class="border border-secondary rounded p-3 mb-3 d-flex align-items-center justify-content-between">
+                            <span class="fw-bold">Add to your post</span>
+                            <div class="d-flex gap-2">
+                                <label for="mediaUpload" class="cursor-pointer mb-0">
+                                    <i class="fa-regular fa-image text-success fs-4"></i>
+                                </label>
+                                <input type="file" id="mediaUpload" name="media" class="d-none" accept="image/*,video/*">
+                            </div>
+                        </div>
+                        <!-- File Name Display (JS handled) -->
+                        <div id="fileNameDisplay" class="text-muted small mb-3 d-none"><i class="fa-solid fa-paperclip"></i> <span id="fileNameText"></span></div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2">Post</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        // Simple JS to show selected file name in the modal
+        document.getElementById('mediaUpload').addEventListener('change', function(e) {
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const fileNameText = document.getElementById('fileNameText');
+            if (this.files && this.files[0]) {
+                fileNameText.textContent = this.files[0].name;
+                fileNameDisplay.classList.remove('d-none');
+            } else {
+                fileNameDisplay.classList.add('d-none');
+            }
+        });
+    </script>
 
     <?php if ($result->num_rows == 0): ?>
         <div class="text-center text-muted my-5">
@@ -149,17 +189,62 @@ $current_user_name = $user_stmt->get_result()->fetch_assoc()['name'];
         <?php endif; ?>
 
         <!-- Action Buttons -->
-        <div class="d-flex px-3 py-1">
-            <form method="POST" action="like.php" class="w-50 me-1">
+        <div class="d-flex px-3 py-1 text-center">
+            <form method="POST" action="like.php" class="flex-fill">
                 <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
                 <button class="action-btn <?= $post['user_liked'] ? 'active-like' : '' ?>">
                     <i class="<?= $post['user_liked'] ? 'fa-solid' : 'fa-regular' ?> fa-thumbs-up me-1"></i> Like
                 </button>
             </form>
 
-            <button class="action-btn w-50" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
+            <button class="action-btn flex-fill mx-1" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
                 <i class="fa-regular fa-message me-1"></i> Comment
             </button>
+
+            <!-- Share Button triggers Modal -->
+            <button class="action-btn flex-fill" data-bs-toggle="modal" data-bs-target="#shareModal<?= $post['id'] ?>">
+                <i class="fa-solid fa-share me-1"></i> Share
+            </button>
+        </div>
+
+        <!-- Share Modal -->
+        <div class="modal fade" id="shareModal<?= $post['id'] ?>" tabindex="-1" aria-labelledby="shareModalLabel<?= $post['id'] ?>" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                    <div class="modal-header border-bottom border-secondary">
+                        <h5 class="modal-title w-100 text-center fw-bold" id="shareModalLabel<?= $post['id'] ?>">Share Post</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="share-post.php" method="POST">
+                            <input type="hidden" name="shared_post_id" value="<?= $post['shared_post_id'] ? $post['shared_post_id'] : $post['id'] ?>">
+
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar-placeholder me-2">
+                                    <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                                </div>
+                                <div>
+                                    <div class="fw-bold mb-1"><?= htmlspecialchars($current_user_name) ?></div>
+                                    <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                        <option value="public" selected>&#xf0ac; Public</option>
+                                        <option value="followers">&#xf0c0; Followers</option>
+                                        <option value="only_me">&#xf023; Only me</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <textarea name="content" class="form-control border-0 bg-transparent fs-5 px-0 text-white mb-3" rows="3" placeholder="Say something about this..." style="resize: none; box-shadow: none;"></textarea>
+
+                            <div class="p-3 border border-secondary rounded text-muted bg-dark mb-3 text-center">
+                                <i class="fa-solid fa-retweet fs-3 mb-2"></i>
+                                <div>You are sharing a post by <strong><?= htmlspecialchars($post['name']) ?></strong></div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2">Share Now</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="border-bottom border-secondary mx-3 mb-2"></div>

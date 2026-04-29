@@ -185,18 +185,62 @@ $posts_result = $posts_stmt->get_result();
                     <?php endif; ?>
 
                     <!-- Action Buttons -->
-                    <div class="d-flex px-3 py-1">
-                        <form method="POST" action="like.php" class="w-50 me-1">
+                    <div class="d-flex px-3 py-1 text-center">
+                        <form method="POST" action="like.php" class="flex-fill">
                             <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
-                            <!-- Need to check if user liked this specifically, missing from original profile SQL but we fallback -->
-                            <button class="action-btn">
-                                <i class="fa-regular fa-thumbs-up me-1"></i> Like
+                            <button class="action-btn <?= $post['like_count'] > 0 ? 'active-like' : '' ?>">
+                                <i class="<?= $post['like_count'] > 0 ? 'fa-solid' : 'fa-regular' ?> fa-thumbs-up me-1"></i> Like
                             </button>
                         </form>
 
-                        <button class="action-btn w-50" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
+                        <button class="action-btn flex-fill mx-1" onclick="document.getElementById('comments-<?= $post['id'] ?>').classList.toggle('d-none')">
                             <i class="fa-regular fa-message me-1"></i> Comment
                         </button>
+
+                        <!-- Share Button triggers Modal -->
+                        <button class="action-btn flex-fill" data-bs-toggle="modal" data-bs-target="#shareModal<?= $post['id'] ?>">
+                            <i class="fa-solid fa-share me-1"></i> Share
+                        </button>
+                    </div>
+
+                    <!-- Share Modal -->
+                    <div class="modal fade" id="shareModal<?= $post['id'] ?>" tabindex="-1" aria-labelledby="shareModalLabel<?= $post['id'] ?>" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                                <div class="modal-header border-bottom border-secondary">
+                                    <h5 class="modal-title w-100 text-center fw-bold" id="shareModalLabel<?= $post['id'] ?>">Share Post</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form action="share-post.php" method="POST">
+                                        <input type="hidden" name="shared_post_id" value="<?= $post['shared_post_id'] ? $post['shared_post_id'] : $post['id'] ?>">
+
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="avatar-placeholder me-2">
+                                                <?= strtoupper(substr($current_user_name ?? 'U', 0, 1)) ?>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold mb-1">Share this post</div>
+                                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                                    <option value="public" selected>&#xf0ac; Public</option>
+                                                    <option value="followers">&#xf0c0; Followers</option>
+                                                    <option value="only_me">&#xf023; Only me</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <textarea name="content" class="form-control border-0 bg-transparent fs-5 px-0 text-white mb-3" rows="3" placeholder="Say something about this..." style="resize: none; box-shadow: none;"></textarea>
+
+                                        <div class="p-3 border border-secondary rounded text-muted bg-dark mb-3 text-center">
+                                            <i class="fa-solid fa-retweet fs-3 mb-2"></i>
+                                            <div>You are sharing a post by <strong><?= htmlspecialchars($user['name']) ?></strong></div>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary w-100 py-2">Share Now</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="border-bottom border-secondary mx-3 mb-2"></div>
