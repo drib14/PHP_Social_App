@@ -1,39 +1,35 @@
 <?php
-// Optional: keep only if you actually use it
-// require_once 'config.php';
+require_once 'config.php';
 
-$host = "127.0.0.1";
+$host = "localhost";
 $user = "root";
-$pass = ""; // set your MySQL password here if needed
+$pass = ""; // Change this if your XAMPP/WAMP MySQL root user has a password!
 $db   = "auth_app";
-$port = 3307;
 
 // Enable mysqli exceptions
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 try {
-    // Connect to MySQL (no DB selected yet)
-    $conn = new mysqli($host, $user, $pass, "", $port);
-    $conn->set_charset("utf8mb4");
+    // Attempt to connect without DB first to create it if it doesn't exist
+    $conn = new mysqli($host, $user, $pass);
 
-    // Create database if not exists
-    $conn->query("CREATE DATABASE IF NOT EXISTS `$db`");
+    // Create DB if not exists
+    $conn->query("CREATE DATABASE IF NOT EXISTS $db");
     $conn->select_db($db);
 
-    // USERS
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS users (
+    // Optional: set charset
+    $conn->set_charset("utf8mb4");
+
+    // Automatically create tables if they do not exist
+    $tables = [
+        "CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100),
             email VARCHAR(100) UNIQUE,
             password VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-
-    // POSTS
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS posts (
+        )",
+        "CREATE TABLE IF NOT EXISTS posts (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT,
             content TEXT,
@@ -45,12 +41,8 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (shared_post_id) REFERENCES posts(id) ON DELETE SET NULL
-        )
-    ");
-
-    // MESSAGES
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS messages (
+        )",
+        "CREATE TABLE IF NOT EXISTS messages (
             id INT AUTO_INCREMENT PRIMARY KEY,
             sender_id INT,
             receiver_id INT,
@@ -62,24 +54,16 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    ");
-
-    // LIKES
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS likes (
+        )",
+        "CREATE TABLE IF NOT EXISTS likes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT,
             post_id INT,
             UNIQUE(user_id, post_id),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
-        )
-    ");
-
-    // COMMENTS
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS comments (
+        )",
+        "CREATE TABLE IF NOT EXISTS comments (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT,
             post_id INT,
@@ -87,12 +71,8 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
-        )
-    ");
-
-    // FOLLOWS
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS follows (
+        )",
+        "CREATE TABLE IF NOT EXISTS follows (
             id INT AUTO_INCREMENT PRIMARY KEY,
             follower_id INT,
             following_id INT,
@@ -100,12 +80,8 @@ try {
             UNIQUE(follower_id, following_id),
             FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    ");
-
-    // NOTIFICATIONS
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS notifications (
+        )",
+        "CREATE TABLE IF NOT EXISTS notifications (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT,
             actor_id INT,
@@ -115,19 +91,34 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    ");
+        )"
+    ];
 
-    echo "Database and tables are ready!";
-
-} catch (mysqli_sql_exception $e) {
-    if (strpos($e->getMessage(), 'Access denied') !== false) {
-        die("
-            <h3>Database Connection Error</h3>
-            <p>Access denied for MySQL user <code>root</code>.</p>
-            <p>Check your password or update <code>\$pass</code> in this file.</p>
-        ");
+    foreach ($tables as $sql) {
+        $conn->query($sql);
     }
 
-    die("<h3>Database Error</h3><p>" . htmlspecialchars($e->getMessage()) . "</p>");
+    // Alter existing posts table if needed
+    $alter_queries = [
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS audience ENUM('public', 'followers', 'only_me') DEFAULT 'public'",
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS shared_post_id INT NULL",
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_data LONGBLOB NULL",
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(100) NULL",
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_name VARCHAR(255) NULL",
+        "ALTER TABLE posts ADD CONSTRAINT fk_shared_post FOREIGN KEY (shared_post_id) REFERENCES posts(id) ON DELETE SET NULL"
+    ];
+
+    foreach ($alter_queries as $sql) {
+        try {
+            $conn->query($sql);
+        } catch (Exception $e) {
+            // Ignore alter errors if constraints already exist
+        }
+    }
+} catch (mysqli_sql_exception $e) {
+    if (strpos($e->getMessage(), 'Access denied for user') !== false) {
+        die("<h3>Database Error: Access Denied</h3><p>Your MySQL server is requiring a password, but <code>db.php</code> is configured to use a blank password.</p><p>Please open <code>db.php</code> and update the <code>\$pass</code> variable on line 6 to match your XAMPP MySQL root password.</p>");
+    } else {
+        die("<h3>Database Error</h3><p>" . htmlspecialchars($e->getMessage()) . "</p>");
+    }
 }
