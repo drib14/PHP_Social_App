@@ -172,13 +172,13 @@ $current_user_name = $u_stmt->get_result()->fetch_assoc()['name'];
                             <?= nl2br(htmlspecialchars($post['content'])) ?>
                         </div>
 
-                        <?php if ($post['media_data']): ?>
+                        <?php if (!empty($post['media_url'])): ?>
                             <div class="w-100 bg-dark text-center my-2" style="max-height: 500px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                                 <?php if (str_starts_with($post['media_type'], 'image/')): ?>
-                                    <img src="media.php?type=post&id=<?= $post['id'] ?>" class="img-fluid" style="max-height: 500px; object-fit: contain;">
+                                    <img src="<?= htmlspecialchars($post['media_url']) ?>" class="img-fluid" style="max-height: 500px; object-fit: contain;">
                                 <?php elseif (str_starts_with($post['media_type'], 'video/')): ?>
                                     <video controls class="w-100" style="max-height: 500px;">
-                                        <source src="media.php?type=post&id=<?= $post['id'] ?>" type="<?= $post['media_type'] ?>">
+                                        <source src="<?= htmlspecialchars($post['media_url']) ?>" type="<?= htmlspecialchars($post['media_type']) ?>">
                                     </video>
                                 <?php endif; ?>
                             </div>

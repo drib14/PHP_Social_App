@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $mark_read->execute();
 
             $sql = "
-                SELECT m.id, m.sender_id, m.receiver_id, m.message, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
+                SELECT m.id, m.sender_id, m.receiver_id, m.message, m.media_url, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
                 FROM messages m
                 JOIN users u ON u.id = m.sender_id
                 WHERE (m.sender_id = ? AND m.receiver_id = ? AND m.chat_group_id IS NULL)
@@ -122,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         } else {
             // Group Chat
             $sql = "
-                SELECT m.id, m.sender_id, m.chat_group_id, m.message, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
+                SELECT m.id, m.sender_id, m.chat_group_id, m.message, m.media_url, m.media_type, m.media_name, m.created_at, m.is_deleted, m.is_edited, u.name as sender_name
                 FROM messages m
                 JOIN users u ON u.id = m.sender_id
                 WHERE m.chat_group_id = ?
@@ -166,7 +166,9 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $receiver_id = $receiver_id ? $receiver_id : null;
         $chat_group_id = $chat_group_id ? $chat_group_id : null;
 
-        $media_data = null;
+        require_once 'cloudinary_helper.php';
+
+        $media_url = null;
         $media_type = null;
         $media_name = null;
 
@@ -174,16 +176,18 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tmp_name = $_FILES['media']['tmp_name'];
             $media_name = $_FILES['media']['name'];
             $media_type = mime_content_type($tmp_name);
-            $media_data = file_get_contents($tmp_name);
+
+            $resource_type = 'auto';
+            if (str_starts_with($media_type, 'image/')) $resource_type = 'image';
+            elseif (str_starts_with($media_type, 'video/')) $resource_type = 'video';
+            else $resource_type = 'raw';
+
+            $media_url = uploadToCloudinary($tmp_name, $resource_type);
         }
 
-        if ($message !== '' || $media_data !== null) {
-            $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, chat_group_id, message, media_data, media_type, media_name) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            // Note: prepared statements don't like nulls mixed with param types perfectly sometimes, but 'iiissss' works if the php var is null
-            $stmt->bind_param("iiissss", $user_id, $receiver_id, $chat_group_id, $message, $media_data, $media_type, $media_name);
-            if ($media_data !== null) {
-                $stmt->send_long_data(4, $media_data);
-            }
+        if ($message !== '' || $media_url !== null) {
+            $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, chat_group_id, message, media_url, media_type, media_name) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iiissss", $user_id, $receiver_id, $chat_group_id, $message, $media_url, $media_type, $media_name);
             $stmt->execute();
 
             echo json_encode(['status' => 'success', 'message_id' => $conn->insert_id]);
@@ -195,7 +199,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_id = $_POST['message_id'] ?? 0;
 
         if ($msg_id) {
-            $stmt = $conn->prepare("UPDATE messages SET is_deleted = 1, message = NULL, media_data = NULL, media_type = NULL, media_name = NULL WHERE id = ? AND sender_id = ?");
+            $stmt = $conn->prepare("UPDATE messages SET is_deleted = 1, message = NULL, media_url = NULL, media_type = NULL, media_name = NULL WHERE id = ? AND sender_id = ?");
             $stmt->bind_param("ii", $msg_id, $user_id);
             $stmt->execute();
             echo json_encode(['status' => 'success']);

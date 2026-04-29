@@ -40,10 +40,16 @@ if ($feed_type === 'following') {
         FROM posts
         JOIN users ON users.id = posts.user_id
         LEFT JOIN user_groups ON user_groups.id = posts.group_id
-        WHERE (posts.group_id IS NULL AND (posts.audience = 'public'
-           OR posts.user_id = ?
-           OR (posts.audience = 'followers' AND EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id))))
-        OR (posts.group_id IS NOT NULL AND EXISTS (SELECT 1 FROM group_members WHERE user_id = ? AND group_id = posts.group_id))
+        WHERE (
+            posts.group_id IS NULL AND (
+                (posts.audience = 'public')
+                OR (posts.user_id = ?)
+                OR (posts.audience = 'followers' AND EXISTS (SELECT 1 FROM follows WHERE follower_id = ? AND following_id = posts.user_id))
+            )
+        )
+        OR (
+            posts.group_id IS NOT NULL AND EXISTS (SELECT 1 FROM group_members WHERE user_id = ? AND group_id = posts.group_id)
+        )
         ORDER BY posts.created_at DESC
     ";
     $stmt = $conn->prepare($sql);
@@ -55,20 +61,20 @@ if ($feed_type === 'following') {
 
 <?php
 // Get current user name and profile pic
-$user_stmt = $conn->prepare("SELECT name, profile_pic_type FROM users WHERE id = ?");
+$user_stmt = $conn->prepare("SELECT name, profile_pic FROM users WHERE id = ?");
 $user_stmt->bind_param("i", $current_user_id);
 $user_stmt->execute();
 $current_user_row = $user_stmt->get_result()->fetch_assoc();
 $current_user_name = $current_user_row['name'];
-$has_profile_pic = !empty($current_user_row['profile_pic_type']);
+$current_profile_pic = $current_user_row['profile_pic'];
 ?>
 
 <div class="feed-container">
     <!-- Post Creation Box (Facebook Style) -->
     <div class="card p-3 mb-4">
         <div class="d-flex align-items-center mb-3">
-            <?php if ($has_profile_pic): ?>
-                <img src="media.php?type=profile&id=<?= $current_user_id ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
+            <?php if (!empty($current_profile_pic)): ?>
+                <img src="<?= htmlspecialchars($current_profile_pic) ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
             <?php else: ?>
                 <div class="avatar-placeholder me-2">
                     <?= strtoupper(substr($current_user_name, 0, 1)) ?>
@@ -159,7 +165,7 @@ $has_profile_pic = !empty($current_user_row['profile_pic_type']);
     <?php endif; ?>
 
     <?php
-        // Fetch posts again properly to join user info including profile_pic_type (we should ideally update the sql query, but for speed we will fetch per post if missing, actually let's just update the query above)
+        // Fetch posts again properly to join user info including profile_pic
     ?>
     <?php while ($post = $result->fetch_assoc()): ?>
     <div class="card mb-4 pb-2 position-relative">
@@ -167,13 +173,13 @@ $has_profile_pic = !empty($current_user_row['profile_pic_type']);
             <div class="d-flex align-items-center">
                 <a href="user_profile.php?id=<?= $post['post_user_id'] ?>">
                     <?php
-                        $pic_stmt = $conn->prepare("SELECT profile_pic_type FROM users WHERE id = ?");
+                        $pic_stmt = $conn->prepare("SELECT profile_pic FROM users WHERE id = ?");
                         $pic_stmt->bind_param("i", $post['post_user_id']);
                         $pic_stmt->execute();
                         $pic_res = $pic_stmt->get_result()->fetch_assoc();
                     ?>
-                    <?php if (!empty($pic_res['profile_pic_type'])): ?>
-                        <img src="media.php?type=profile&id=<?= $post['post_user_id'] ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
+                    <?php if (!empty($pic_res['profile_pic'])): ?>
+                        <img src="<?= htmlspecialchars($pic_res['profile_pic']) ?>" class="rounded-circle me-2 object-fit-cover bg-dark" style="width: 40px; height: 40px;">
                     <?php else: ?>
                         <div class="avatar-placeholder me-2" style="width: 40px; height: 40px; font-size: 1rem;">
                             <?= strtoupper(substr($post['name'], 0, 1)) ?>
@@ -251,6 +257,27 @@ $has_profile_pic = !empty($current_user_row['profile_pic_type']);
         <div class="px-3 pb-2 fs-6">
             <?= nl2br(htmlspecialchars($post['content'])) ?>
         </div>
+
+        <?php if (!empty($post['media_url'])): ?>
+            <div class="w-100 bg-dark text-center my-2" style="max-height: 500px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <?php if (str_starts_with($post['media_type'], 'image/')): ?>
+                    <img src="<?= htmlspecialchars($post['media_url']) ?>" class="img-fluid" style="max-height: 500px; object-fit: contain;">
+                <?php elseif (str_starts_with($post['media_type'], 'video/')): ?>
+                    <video controls class="w-100" style="max-height: 500px;">
+                        <source src="<?= htmlspecialchars($post['media_url']) ?>" type="<?= htmlspecialchars($post['media_type']) ?>">
+                        Your browser does not support the video tag.
+                    </video>
+                <?php else: ?>
+                    <div class="p-4 border border-secondary rounded m-3 bg-secondary d-flex align-items-center gap-3">
+                        <i class="fa-solid fa-file fs-1 text-muted"></i>
+                        <div class="text-start">
+                            <div class="fw-bold"><?= htmlspecialchars($post['media_name']) ?></div>
+                            <a href="<?= htmlspecialchars($post['media_url']) ?>" class="btn btn-sm btn-primary mt-2" target="_blank" download>Download File</a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($post['like_count'] > 0 || $post['comment_count'] > 0): ?>
         <div class="px-3 py-2 text-muted d-flex justify-content-between border-bottom border-secondary" style="font-size: 0.9rem;">

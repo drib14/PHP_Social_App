@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'cloudinary_helper.php';
 include 'partials/header.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -34,14 +35,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === UPLOAD_ERR_OK) {
         $tmp_name = $_FILES['profile_pic']['tmp_name'];
         $type = mime_content_type($tmp_name);
-        $data = file_get_contents($tmp_name);
 
         if (str_starts_with($type, 'image/')) {
-            $upd_pic = $conn->prepare("UPDATE users SET profile_pic=?, profile_pic_type=? WHERE id=?");
-            $upd_pic->bind_param("ssi", $data, $type, $user_id);
-            $upd_pic->send_long_data(0, $data);
-            $upd_pic->execute();
-            $success .= "Profile picture updated. ";
+            $url = uploadToCloudinary($tmp_name, 'image');
+            if ($url) {
+                $upd_pic = $conn->prepare("UPDATE users SET profile_pic=?, profile_pic_type=? WHERE id=?");
+                $upd_pic->bind_param("ssi", $url, $type, $user_id);
+                $upd_pic->execute();
+                $success .= "Profile picture updated. ";
+            }
         }
     }
 
@@ -49,14 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_FILES['cover_photo']) && $_FILES['cover_photo']['error'] === UPLOAD_ERR_OK) {
         $tmp_name = $_FILES['cover_photo']['tmp_name'];
         $type = mime_content_type($tmp_name);
-        $data = file_get_contents($tmp_name);
 
         if (str_starts_with($type, 'image/')) {
-            $upd_cover = $conn->prepare("UPDATE users SET cover_photo=?, cover_photo_type=? WHERE id=?");
-            $upd_cover->bind_param("ssi", $data, $type, $user_id);
-            $upd_cover->send_long_data(0, $data);
-            $upd_cover->execute();
-            $success .= "Cover photo updated. ";
+            $url = uploadToCloudinary($tmp_name, 'image');
+            if ($url) {
+                $upd_cover = $conn->prepare("UPDATE users SET cover_photo=?, cover_photo_type=? WHERE id=?");
+                $upd_cover->bind_param("ssi", $url, $type, $user_id);
+                $upd_cover->execute();
+                $success .= "Cover photo updated. ";
+            }
         }
     }
 

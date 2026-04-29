@@ -476,12 +476,12 @@
 
                 if (m.has_media) {
                     if (m.media_type.startsWith('image/')) {
-                        contentHTML += `<img src="media.php?type=message&id=${m.id}" class="chat-media-img">`;
+                        contentHTML += `<img src="${m.media_url}" class="chat-media-img">`;
                     } else if (m.media_type.startsWith('video/')) {
-                        contentHTML += `<video src="media.php?type=message&id=${m.id}" class="chat-media-img" controls></video>`;
+                        contentHTML += `<video src="${m.media_url}" class="chat-media-img" controls></video>`;
                     } else {
                         contentHTML += `
-                            <a href="media.php?type=message&id=${m.id}" class="chat-file" download>
+                            <a href="${m.media_url}" class="chat-file" target="_blank" download>
                                 <i class="fa-solid fa-file"></i> ${m.media_name}
                             </a>
                         `;

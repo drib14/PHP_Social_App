@@ -182,7 +182,7 @@ try {
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS page_id INT NULL",
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS audience ENUM('public', 'followers', 'only_me') DEFAULT 'public'",
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS shared_post_id INT NULL",
-        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_data LONGBLOB NULL",
+        "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(500) NULL",
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(100) NULL",
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_name VARCHAR(255) NULL",
         "ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE",
@@ -193,9 +193,9 @@ try {
 
         // Users
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NULL",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic LONGBLOB NULL",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic VARCHAR(500) NULL",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic_type VARCHAR(100) NULL",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_photo LONGBLOB NULL",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_photo VARCHAR(500) NULL",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_photo_type VARCHAR(100) NULL",
 
         // Comments
@@ -207,11 +207,23 @@ try {
         // Messages
         "ALTER TABLE messages MODIFY COLUMN receiver_id INT NULL",
         "ALTER TABLE messages ADD COLUMN IF NOT EXISTS chat_group_id INT NULL",
+        "ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url VARCHAR(500) NULL",
         "ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE",
         "ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE",
         "ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
         "ALTER TABLE messages ADD CONSTRAINT fk_message_chatgroup FOREIGN KEY (chat_group_id) REFERENCES chat_groups(id) ON DELETE CASCADE"
     ];
+
+    // Drop LONGBLOB columns if they exist from previous schema
+    $drop_blobs = [
+        "ALTER TABLE posts DROP COLUMN media_data",
+        "ALTER TABLE users DROP COLUMN profile_pic", // Need to change type, drop first
+        "ALTER TABLE users DROP COLUMN cover_photo",
+        "ALTER TABLE messages DROP COLUMN media_data"
+    ];
+    foreach ($drop_blobs as $sql) {
+        try { $conn->query($sql); } catch (Exception $e) {}
+    }
 
     foreach ($alter_queries as $sql) {
         try {

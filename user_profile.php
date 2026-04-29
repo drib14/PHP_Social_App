@@ -11,7 +11,7 @@ $current_user_id = $_SESSION['user_id'];
 $profile_user_id = $_GET['id'] ?? $current_user_id;
 
 // Fetch user info
-$stmt = $conn->prepare("SELECT id, name, email, bio, profile_pic_type, cover_photo_type FROM users WHERE id=?");
+$stmt = $conn->prepare("SELECT id, name, email, bio, profile_pic, cover_photo FROM users WHERE id=?");
 $stmt->bind_param("i", $profile_user_id);
 $stmt->execute();
 $user_result = $stmt->get_result();
@@ -46,15 +46,40 @@ $following_stmt->bind_param("i", $profile_user_id);
 $following_stmt->execute();
 $following_count = $following_stmt->get_result()->fetch_assoc()['count'];
 
-// Fetch user's posts
-$posts_stmt = $conn->prepare("
-    SELECT posts.*,
-    (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
-    (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
-    FROM posts
-    WHERE user_id = ?
-    ORDER BY created_at DESC
-");
+// Enforce Audience rules for user profile
+// If viewing your own profile: see everything (public, followers, only_me)
+// If viewing someone else AND following them: see public, followers (strictly NO only_me)
+// If viewing someone else AND NOT following them: see public (strictly NO only_me)
+if ($current_user_id == $profile_user_id) {
+    $posts_sql = "
+        SELECT posts.*,
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
+        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
+        FROM posts
+        WHERE user_id = ? AND group_id IS NULL
+        ORDER BY created_at DESC
+    ";
+} else if ($is_following) {
+    $posts_sql = "
+        SELECT posts.*,
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
+        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
+        FROM posts
+        WHERE user_id = ? AND group_id IS NULL AND (audience = 'public' OR audience = 'followers')
+        ORDER BY created_at DESC
+    ";
+} else {
+    $posts_sql = "
+        SELECT posts.*,
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
+        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
+        FROM posts
+        WHERE user_id = ? AND group_id IS NULL AND audience = 'public'
+        ORDER BY created_at DESC
+    ";
+}
+
+$posts_stmt = $conn->prepare($posts_sql);
 $posts_stmt->bind_param("i", $profile_user_id);
 $posts_stmt->execute();
 $posts_result = $posts_stmt->get_result();
@@ -63,7 +88,12 @@ $posts_result = $posts_stmt->get_result();
 <!-- Profile Header (Facebook Style) -->
 <div class="card mb-4" style="overflow: hidden;">
     <!-- Cover Photo Area -->
-    <div style="height: 250px; background: linear-gradient(135deg, #1e293b, var(--bg-hover)); border-bottom: 1px solid var(--border-color); position: relative; <?= $user['cover_photo_type'] ? 'background-image: url(media.php?type=cover&id='.$user['id'].'); background-size: cover; background-position: center;' : '' ?>">
+    <?php
+        // We use the new user fields directly
+        $cover_url = !empty($user['cover_photo']) ? $user['cover_photo'] : '';
+        $profile_url = !empty($user['profile_pic']) ? $user['profile_pic'] : '';
+    ?>
+    <div style="height: 250px; background: linear-gradient(135deg, #1e293b, var(--bg-hover)); border-bottom: 1px solid var(--border-color); position: relative; <?= $cover_url ? 'background-image: url('.htmlspecialchars($cover_url).'); background-size: cover; background-position: center;' : '' ?>">
         <div class="position-absolute bottom-0 end-0 p-3">
             <?php if ($current_user_id == $profile_user_id): ?>
                 <a href="edit-profile.php" class="btn btn-sm btn-secondary"><i class="fa-solid fa-camera me-1"></i> Edit Cover Photo</a>
@@ -76,8 +106,8 @@ $posts_result = $posts_stmt->get_result();
         <div class="d-flex flex-column flex-md-row align-items-md-end gap-3">
             <!-- Profile Picture -->
             <div class="position-relative">
-                <?php if ($user['profile_pic_type']): ?>
-                    <img src="media.php?type=profile&id=<?= $user['id'] ?>" class="rounded-circle border border-4 border-dark object-fit-cover bg-dark" style="width: 140px; height: 140px; border-color: var(--bg-secondary) !important;">
+                <?php if ($profile_url): ?>
+                    <img src="<?= htmlspecialchars($profile_url) ?>" class="rounded-circle border border-4 border-dark object-fit-cover bg-dark" style="width: 140px; height: 140px; border-color: var(--bg-secondary) !important;">
                 <?php else: ?>
                     <div class="avatar-placeholder rounded-circle border border-4 border-dark" style="width: 140px; height: 140px; font-size: 3rem; background-color: var(--accent-color); border-color: var(--bg-secondary) !important;">
                         <?= strtoupper(substr($user['name'], 0, 1)) ?>
@@ -112,7 +142,7 @@ $posts_result = $posts_stmt->get_result();
                             <button class="btn btn-primary"><i class="fa-solid fa-user-plus me-1"></i> Follow</button>
                         <?php endif; ?>
                     </form>
-                    <button class="btn btn-secondary"><i class="fa-brands fa-facebook-messenger me-1"></i> Message</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('main-chat-trigger').click(); setTimeout(() => openConversation(<?= $user['id'] ?>, '<?= addslashes($user['name']) ?>', '<?= strtoupper(substr($user['name'], 0, 1)) ?>', 'user'), 300);"><i class="fa-brands fa-facebook-messenger me-1"></i> Message</button>
                 <?php endif; ?>
             </div>
         </div>
