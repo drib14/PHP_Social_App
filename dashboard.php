@@ -69,7 +69,100 @@ $current_user_name = $current_user_row['name'];
 $current_profile_pic = $current_user_row['profile_pic'];
 ?>
 
-<div class="feed-container">
+<div class="row">
+    <!-- Left Sidebar (Navigation/Groups) -->
+    <div class="col-lg-3 d-none d-lg-block">
+        <div class="position-sticky" style="top: 80px;">
+            <div class="d-flex align-items-center mb-3 p-2 rounded hover-bg-dark cursor-pointer" onclick="window.location.href='user_profile.php'">
+                <?php if (!empty($current_profile_pic)): ?>
+                    <img src="<?= htmlspecialchars($current_profile_pic) ?>" class="rounded-circle me-3 object-fit-cover bg-dark" style="width: 36px; height: 36px;">
+                <?php else: ?>
+                    <div class="avatar-placeholder me-3" style="width: 36px; height: 36px; font-size: 1rem;">
+                        <?= strtoupper(substr($current_user_name, 0, 1)) ?>
+                    </div>
+                <?php endif; ?>
+                <span class="fw-bold"><?= htmlspecialchars($current_user_name) ?></span>
+            </div>
+
+            <a href="dashboard.php?feed=following" class="d-flex align-items-center mb-3 p-2 rounded text-decoration-none text-white hover-bg-dark cursor-pointer">
+                <i class="fa-solid fa-user-group fs-4 text-primary me-3 w-30px text-center"></i>
+                <span class="fw-bold">Friends</span>
+            </a>
+
+            <a href="groups.php" class="d-flex align-items-center mb-3 p-2 rounded text-decoration-none text-white hover-bg-dark cursor-pointer">
+                <i class="fa-solid fa-users fs-4 text-success me-3 w-30px text-center"></i>
+                <span class="fw-bold">Groups</span>
+            </a>
+
+            <a href="pages.php" class="d-flex align-items-center mb-3 p-2 rounded text-decoration-none text-white hover-bg-dark cursor-pointer">
+                <i class="fa-solid fa-flag fs-4 text-warning me-3 w-30px text-center"></i>
+                <span class="fw-bold">Pages</span>
+            </a>
+
+            <hr class="border-secondary my-2">
+            <h6 class="text-muted fw-bold px-2 mt-3">Your Shortcuts</h6>
+
+            <?php
+            // Fetch groups user joined
+            $my_groups_stmt = $conn->prepare("SELECT user_groups.id, user_groups.name, user_groups.cover_photo FROM user_groups JOIN group_members ON user_groups.id = group_members.group_id WHERE group_members.user_id = ? LIMIT 5");
+            $my_groups_stmt->bind_param("i", $current_user_id);
+            $my_groups_stmt->execute();
+            $my_groups_result = $my_groups_stmt->get_result();
+            while($grp = $my_groups_result->fetch_assoc()):
+            ?>
+                <a href="view_group.php?id=<?= $grp['id'] ?>" class="d-flex align-items-center mb-2 p-2 rounded text-decoration-none text-white hover-bg-dark cursor-pointer">
+                    <?php if($grp['cover_photo']): ?>
+                        <img src="<?= htmlspecialchars($grp['cover_photo']) ?>" class="rounded me-3 object-fit-cover" style="width: 36px; height: 36px;">
+                    <?php else: ?>
+                        <div class="rounded bg-secondary d-flex justify-content-center align-items-center me-3" style="width: 36px; height: 36px;">
+                            <i class="fa-solid fa-users text-muted"></i>
+                        </div>
+                    <?php endif; ?>
+                    <span class="text-truncate"><?= htmlspecialchars($grp['name']) ?></span>
+                </a>
+            <?php endwhile; ?>
+        </div>
+    </div>
+
+    <!-- Center Feed -->
+    <div class="col-lg-6 col-md-8 mx-auto feed-container pt-0">
+    <!-- Story / Group Carousel -->
+    <div class="mb-4 position-relative">
+        <div class="d-flex gap-2 overflow-auto hide-scrollbar pb-2" style="scroll-snap-type: x mandatory;">
+
+            <!-- Create Story Card -->
+            <div class="card overflow-hidden flex-shrink-0 cursor-pointer border-0" style="width: 120px; height: 200px; scroll-snap-align: start;">
+                <div class="h-100 position-relative bg-dark" style="background-image: url('<?= $current_profile_pic ? htmlspecialchars($current_profile_pic) : "" ?>'); background-size: cover; background-position: center;">
+                    <div class="position-absolute bottom-0 w-100 bg-secondary text-center pt-3 pb-2" style="border-top: 1px solid var(--border-color);">
+                        <div class="position-absolute top-0 start-50 translate-middle bg-primary rounded-circle d-flex justify-content-center align-items-center" style="width: 32px; height: 32px; border: 4px solid var(--bg-secondary);">
+                            <i class="fa-solid fa-plus text-white"></i>
+                        </div>
+                        <span class="fw-bold" style="font-size: 0.8rem;">Create Story</span>
+                    </div>
+                </div>
+            </div>
+
+            <?php
+            // Fetch public groups for carousel
+            $carousel_groups = $conn->query("SELECT id, name, cover_photo FROM user_groups LIMIT 6");
+            while($c_grp = $carousel_groups->fetch_assoc()):
+            ?>
+            <div class="card overflow-hidden flex-shrink-0 cursor-pointer border-0" style="width: 120px; height: 200px; scroll-snap-align: start;" onclick="window.location.href='view_group.php?id=<?= $c_grp['id'] ?>'">
+                <div class="h-100 position-relative" style="background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url('<?= $c_grp['cover_photo'] ? htmlspecialchars($c_grp['cover_photo']) : "https://via.placeholder.com/120x200/2c3e50/ffffff?text=Group" ?>'); background-size: cover; background-position: center;">
+                    <div class="position-absolute top-0 start-0 m-2">
+                        <div class="bg-primary rounded-circle d-flex justify-content-center align-items-center" style="width: 32px; height: 32px; border: 2px solid var(--accent-color);">
+                            <i class="fa-solid fa-users text-white" style="font-size: 0.8rem;"></i>
+                        </div>
+                    </div>
+                    <div class="position-absolute bottom-0 start-0 w-100 p-2">
+                        <span class="fw-bold text-white text-truncate d-block" style="font-size: 0.8rem;"><?= htmlspecialchars($c_grp['name']) ?></span>
+                    </div>
+                </div>
+            </div>
+            <?php endwhile; ?>
+        </div>
+    </div>
+
     <!-- Post Creation Box (Facebook Style) -->
     <div class="card p-3 mb-4">
         <div class="d-flex align-items-center mb-3">
@@ -114,7 +207,7 @@ $current_profile_pic = $current_user_row['profile_pic'];
                             </div>
                             <div>
                                 <div class="fw-bold mb-1"><?= htmlspecialchars($current_user_name) ?></div>
-                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px; font-family: 'Font Awesome 6 Free', 'Poppins', sans-serif; font-weight: 900;">
                                     <option value="public" selected>&#xf0ac; Public</option>
                                     <option value="followers">&#xf0c0; Followers</option>
                                     <option value="only_me">&#xf023; Only me</option>
@@ -133,8 +226,20 @@ $current_profile_pic = $current_user_row['profile_pic'];
                                 <input type="file" id="mediaUpload" name="media" class="d-none" accept="image/*,video/*">
                             </div>
                         </div>
-                        <!-- File Name Display (JS handled) -->
-                        <div id="fileNameDisplay" class="text-muted small mb-3 d-none"><i class="fa-solid fa-paperclip"></i> <span id="fileNameText"></span></div>
+                        <!-- Media Preview Container (JS handled) -->
+                        <div id="mediaPreviewContainer" class="position-relative mb-3 d-none">
+                            <div class="position-absolute top-0 end-0 m-2 z-1">
+                                <button type="button" class="btn btn-dark btn-sm rounded-circle opacity-75 hover-opacity-100" onclick="clearMediaUpload()">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <img id="imagePreview" src="" class="img-fluid rounded border border-secondary d-none" style="max-height: 200px; width: 100%; object-fit: cover;">
+                            <video id="videoPreview" src="" class="img-fluid rounded border border-secondary d-none" style="max-height: 200px; width: 100%;" controls></video>
+                            <div id="filePreview" class="p-3 border border-secondary rounded bg-dark d-none align-items-center gap-2">
+                                <i class="fa-solid fa-file text-muted fs-4"></i>
+                                <span id="fileNameText" class="text-truncate flex-grow-1"></span>
+                            </div>
+                        </div>
 
                         <button type="submit" class="btn btn-primary w-100 py-2">Post</button>
                     </form>
@@ -146,15 +251,40 @@ $current_profile_pic = $current_user_row['profile_pic'];
     <script>
         // Simple JS to show selected file name in the modal
         document.getElementById('mediaUpload').addEventListener('change', function(e) {
-            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const container = document.getElementById('mediaPreviewContainer');
+            const imgPreview = document.getElementById('imagePreview');
+            const vidPreview = document.getElementById('videoPreview');
+            const filePreview = document.getElementById('filePreview');
             const fileNameText = document.getElementById('fileNameText');
+
+            imgPreview.classList.add('d-none');
+            vidPreview.classList.add('d-none');
+            filePreview.classList.add('d-none');
+            container.classList.add('d-none');
+
             if (this.files && this.files[0]) {
-                fileNameText.textContent = this.files[0].name;
-                fileNameDisplay.classList.remove('d-none');
-            } else {
-                fileNameDisplay.classList.add('d-none');
+                const file = this.files[0];
+                container.classList.remove('d-none');
+
+                if (file.type.startsWith('image/')) {
+                    imgPreview.src = URL.createObjectURL(file);
+                    imgPreview.classList.remove('d-none');
+                } else if (file.type.startsWith('video/')) {
+                    vidPreview.src = URL.createObjectURL(file);
+                    vidPreview.classList.remove('d-none');
+                } else {
+                    fileNameText.textContent = file.name;
+                    filePreview.classList.remove('d-none');
+                    filePreview.classList.add('d-flex');
+                }
             }
         });
+
+        function clearMediaUpload() {
+            const input = document.getElementById('mediaUpload');
+            input.value = '';
+            document.getElementById('mediaPreviewContainer').classList.add('d-none');
+        }
     </script>
 
     <?php if ($result->num_rows == 0): ?>
@@ -335,7 +465,7 @@ $current_profile_pic = $current_user_row['profile_pic'];
                                 </div>
                                 <div>
                                     <div class="fw-bold mb-1"><?= htmlspecialchars($current_user_name) ?></div>
-                                    <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                    <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px; font-family: 'Font Awesome 6 Free', 'Poppins', sans-serif; font-weight: 900;">
                                         <option value="public" selected>&#xf0ac; Public</option>
                                         <option value="followers">&#xf0c0; Followers</option>
                                         <option value="only_me">&#xf023; Only me</option>
@@ -407,6 +537,54 @@ $current_profile_pic = $current_user_row['profile_pic'];
         </div>
     </div>
     <?php endwhile; ?>
+</div>
+
+
+    </div>
+
+    <!-- Right Sidebar (Contacts) -->
+    <div class="col-lg-3 d-none d-lg-block">
+        <div class="position-sticky" style="top: 80px;">
+            <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+                <h6 class="text-muted fw-bold mb-0">Contacts</h6>
+                <div class="d-flex gap-3 text-muted">
+                    <i class="fa-solid fa-video cursor-pointer"></i>
+                    <i class="fa-solid fa-search cursor-pointer"></i>
+                    <i class="fa-solid fa-ellipsis cursor-pointer"></i>
+                </div>
+            </div>
+
+            <?php
+            // Fetch users you follow for contacts
+            $contacts_stmt = $conn->prepare("
+                SELECT users.id, users.name, users.profile_pic
+                FROM users
+                JOIN follows ON follows.following_id = users.id
+                WHERE follows.follower_id = ?
+                LIMIT 15
+            ");
+            $contacts_stmt->bind_param("i", $current_user_id);
+            $contacts_stmt->execute();
+            $contacts_result = $contacts_stmt->get_result();
+            while($contact = $contacts_result->fetch_assoc()):
+            ?>
+                <div class="d-flex align-items-center mb-2 p-2 rounded hover-bg-dark cursor-pointer" onclick="document.getElementById('main-chat-trigger').click(); setTimeout(() => openConversation(<?= $contact['id'] ?>, '<?= addslashes($contact['name']) ?>', '<?= strtoupper(substr($contact['name'], 0, 1)) ?>', 'user'), 300);">
+                    <div class="position-relative me-3">
+                        <?php if (!empty($contact['profile_pic'])): ?>
+                            <img src="<?= htmlspecialchars($contact['profile_pic']) ?>" class="rounded-circle object-fit-cover bg-dark" style="width: 36px; height: 36px;">
+                        <?php else: ?>
+                            <div class="avatar-placeholder" style="width: 36px; height: 36px; font-size: 1rem;">
+                                <?= strtoupper(substr($contact['name'], 0, 1)) ?>
+                            </div>
+                        <?php endif; ?>
+                        <!-- Green active dot (fake status) -->
+                        <div class="position-absolute bg-success rounded-circle border border-2 border-dark" style="width: 12px; height: 12px; bottom: 0; right: 0;"></div>
+                    </div>
+                    <span class="fw-semibold text-truncate"><?= htmlspecialchars($contact['name']) ?></span>
+                </div>
+            <?php endwhile; ?>
+        </div>
+    </div>
 </div>
 
 <?php include 'partials/footer.php'; ?>

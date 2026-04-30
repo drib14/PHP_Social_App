@@ -264,7 +264,7 @@ $posts_result = $posts_stmt->get_result();
                                             </div>
                                             <div>
                                                 <div class="fw-bold mb-1">Share this post</div>
-                                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px;">
+                                                <select name="audience" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto; font-size: 0.8rem; border-radius: 6px; padding: 2px 24px 2px 8px; font-family: 'Font Awesome 6 Free', 'Poppins', sans-serif; font-weight: 900;">
                                                     <option value="public" selected>&#xf0ac; Public</option>
                                                     <option value="followers">&#xf0c0; Followers</option>
                                                     <option value="only_me">&#xf023; Only me</option>

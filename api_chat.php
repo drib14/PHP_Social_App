@@ -12,6 +12,17 @@ $user_id = $_SESSION['user_id'];
 $action = $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($action === 'get_unread_count') {
+        $sql = "SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND is_read = FALSE";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        echo json_encode(['unread' => $row['count']]);
+        die;
+    }
+
     if ($action === 'get_conversations') {
         // Fetch 1-on-1 users
         $sql = "
@@ -103,9 +114,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         $search_term = "%{$query}%";
-        $sql = "SELECT id, name, profile_pic FROM users WHERE name LIKE ? AND id != ? LIMIT 10";
+        // Get followed users first
+        $sql = "
+            SELECT u.id, u.name, u.profile_pic,
+            (SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.following_id = u.id LIMIT 1) as is_followed
+            FROM users u
+            WHERE u.name LIKE ? AND u.id != ?
+            ORDER BY is_followed DESC, u.name ASC
+            LIMIT 15
+        ";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("si", $search_term, $user_id);
+        $stmt->bind_param("isi", $user_id, $search_term, $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
 
@@ -116,7 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 'name' => $row['name'],
                 'initial' => strtoupper(substr($row['name'], 0, 1)),
                 'profile_pic' => $row['profile_pic'],
-                'type' => 'user'
+                'type' => 'user',
+                'category' => $row['is_followed'] ? 'followed' : 'other'
             ];
         }
 

@@ -67,7 +67,7 @@
     display: none;
     flex-direction: column;
     z-index: 1040;
-    overflow: hidden;
+
     transform-origin: bottom right;
     animation: popupIn 0.2s ease forwards;
 }
@@ -211,9 +211,9 @@
     <!-- Dynamic chatheads will be prepended here -->
 </div>
 
-<div id="chat-popup">
+<div id="chat-popup" style="overflow: visible;">
     <!-- View 1: Contacts List -->
-    <div id="chat-view-list" class="h-100 d-flex flex-column">
+    <div id="chat-view-list" class="h-100 d-flex flex-column" style="overflow: visible;">
         <div class="chat-header">
             <h5 class="mb-0 fw-bold">Chats</h5>
             <div>
@@ -221,9 +221,9 @@
                 <i class="fa-solid fa-up-right-and-down-left-from-center text-muted cursor-pointer" onclick="closeChatPopup()"></i>
             </div>
         </div>
-        <div class="p-2 border-bottom border-secondary position-relative">
+        <div class="p-2 border-bottom border-secondary position-relative" style="overflow: visible;">
             <input type="text" id="chat-search-input" class="form-control bg-dark border-0 rounded-pill" placeholder="Search Messenger" style="font-size: 0.85rem; color: var(--text-primary);">
-            <div id="chat-search-results" class="position-absolute w-100 bg-secondary rounded shadow-lg d-none" style="top: 100%; left: 0; z-index: 10; max-height: 250px; overflow-y: auto;">
+            <div id="chat-search-results" class="position-absolute w-100 bg-secondary rounded shadow-lg d-none" style="top: 100%; left: 0; z-index: 9999; max-height: 250px; overflow-y: auto;">
                 <!-- Search results injected here -->
             </div>
         </div>
@@ -251,10 +251,19 @@
             <!-- Messages loaded via JS -->
         </div>
 
-        <!-- Attachment Preview -->
-        <div id="chat-attachment-preview" class="d-none bg-dark p-2 border-top border-secondary d-flex justify-content-between align-items-center">
-            <div class="text-truncate small"><i class="fa-solid fa-paperclip"></i> <span id="chat-attachment-name"></span></div>
-            <i class="fa-solid fa-xmark cursor-pointer text-danger" onclick="clearChatAttachment()"></i>
+        <!-- Attachment Preview Container -->
+        <div id="chat-attachment-preview-container" class="d-none bg-dark p-2 border-top border-secondary position-relative">
+            <div class="position-absolute top-0 end-0 m-1 z-1">
+                <button type="button" class="btn btn-dark btn-sm rounded-circle opacity-75 hover-opacity-100" onclick="clearChatAttachment()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <img id="chat-image-preview" src="" class="img-fluid rounded border border-secondary d-none" style="max-height: 120px; object-fit: contain; width: auto; max-width: 100%;">
+            <video id="chat-video-preview" src="" class="img-fluid rounded border border-secondary d-none" style="max-height: 120px; object-fit: contain; width: auto; max-width: 100%;" controls></video>
+            <div id="chat-file-preview" class="d-none align-items-center gap-2 px-2 py-1">
+                <i class="fa-solid fa-file text-muted fs-5"></i>
+                <span id="chat-attachment-name" class="text-truncate small flex-grow-1 text-white"></span>
+            </div>
         </div>
 
         <form id="chat-form" class="chat-input-area m-0">
@@ -283,6 +292,31 @@
 <script>
     let activeChatId = null;
     let pollInterval = null;
+    let notifPollInterval = null;
+
+    // Start a global notification polling to update chat badge and normal notifications
+    function startGlobalPolling() {
+        if (!notifPollInterval) {
+            notifPollInterval = setInterval(async () => {
+                // Poll unread chat messages count
+                try {
+                    const res = await fetch('api_chat.php?action=get_unread_count');
+                    const data = await res.json();
+                    const badge = document.getElementById('chat-global-badge');
+                    if (data.unread && data.unread > 0) {
+                        badge.textContent = data.unread;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+                } catch(e) {}
+            }, 3000);
+        }
+    }
+
+    // Start global polling immediately
+    startGlobalPolling();
+
     let selectedFile = null;
 
     const chatPopup = document.getElementById('chat-popup');
@@ -312,8 +346,20 @@
                 const users = await res.json();
 
                 chatSearchResults.innerHTML = '';
+                chatSearchResults.classList.remove('d-none'); // explicitly show right away
                 if (users.length > 0) {
+                    let hasOther = false;
+
                     users.forEach(u => {
+                        if (u.category === 'other' && !hasOther) {
+                            hasOther = true;
+                            const label = document.createElement('div');
+                            label.className = 'px-2 py-1 text-muted fw-bold border-bottom border-dark';
+                            label.style.fontSize = '0.75rem';
+                            label.innerText = 'Other people';
+                            chatSearchResults.appendChild(label);
+                        }
+
                         const div = document.createElement('div');
                         div.className = 'p-2 border-bottom border-dark cursor-pointer bg-hover d-flex align-items-center gap-2';
                         div.innerHTML = `
@@ -580,14 +626,33 @@
     // Attachments Handling
     const fileUpload = document.getElementById('chat-file-upload');
     const imgUpload = document.getElementById('chat-image-upload');
-    const preview = document.getElementById('chat-attachment-preview');
+    const previewContainer = document.getElementById('chat-attachment-preview-container');
+    const imgPreview = document.getElementById('chat-image-preview');
+    const vidPreview = document.getElementById('chat-video-preview');
+    const filePreview = document.getElementById('chat-file-preview');
     const previewName = document.getElementById('chat-attachment-name');
 
     function handleFileSelect(e) {
+        imgPreview.classList.add('d-none');
+        vidPreview.classList.add('d-none');
+        filePreview.classList.add('d-none');
+        previewContainer.classList.add('d-none');
+
         if (this.files && this.files[0]) {
             selectedFile = this.files[0];
-            previewName.innerText = selectedFile.name;
-            preview.classList.remove('d-none');
+            previewContainer.classList.remove('d-none');
+
+            if (selectedFile.type.startsWith('image/')) {
+                imgPreview.src = URL.createObjectURL(selectedFile);
+                imgPreview.classList.remove('d-none');
+            } else if (selectedFile.type.startsWith('video/')) {
+                vidPreview.src = URL.createObjectURL(selectedFile);
+                vidPreview.classList.remove('d-none');
+            } else {
+                previewName.innerText = selectedFile.name;
+                filePreview.classList.remove('d-none');
+                filePreview.classList.add('d-flex');
+            }
             document.getElementById('chat-message-input').focus();
         }
     }
@@ -599,7 +664,7 @@
         selectedFile = null;
         fileUpload.value = '';
         imgUpload.value = '';
-        preview.classList.add('d-none');
+        previewContainer.classList.add('d-none');
     }
 
     // Send Message Form

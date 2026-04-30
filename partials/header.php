@@ -3,7 +3,7 @@
 <html>
 
 <head>
-    <title>Mini Social</title>
+    <title>Socialize</title>
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome -->
@@ -16,16 +16,16 @@
 
 <body>
 
-    <nav class="navbar sticky-top d-flex justify-content-between align-items-center">
+    <nav class="navbar sticky-top d-flex justify-content-between align-items-center px-3">
         <!-- Left: Brand & Search -->
-        <div class="d-flex align-items-center gap-2" style="width: 25%;">
-            <a class="navbar-brand fw-bold mb-0" href="dashboard.php">
-                <i class="fa-brands fa-envira"></i> <!-- Emerald icon -->
+        <div class="d-flex align-items-center gap-2" style="width: 30%;">
+            <a class="navbar-brand fw-bold mb-0 text-decoration-none" href="dashboard.php" style="color: var(--accent-color);">
+                <i class="fa-brands fa-envira fs-3"></i>
             </a>
             <?php if (isset($_SESSION['user_id'])): ?>
-            <form method="GET" action="search.php" class="d-none d-md-flex position-relative">
+            <form method="GET" action="search.php" class="d-none d-md-flex position-relative flex-grow-1" style="max-width: 240px;">
                 <i class="fa-solid fa-search position-absolute text-muted" style="left: 12px; top: 50%; transform: translateY(-50%);"></i>
-                <input type="text" name="q" class="form-control ps-5" placeholder="Search MiniSocial..." style="width: 240px; background-color: var(--bg-hover) !important;">
+                <input type="text" name="q" class="form-control ps-5 rounded-pill border-0 text-white" placeholder="Search Socialize" style="background-color: var(--bg-hover) !important; font-size: 0.95rem;">
             </form>
             <?php endif; ?>
         </div>
@@ -167,4 +167,5 @@
         </div>
     </nav>
 
-    <div class="container" style="max-width:700px;"></div>
+    <!-- Keep this container empty as it serves as a spacer or wrapper if needed, but we'll use a fluid container below -->
+    <div class="container-fluid" style="max-width: 1600px; padding-top: 20px;">

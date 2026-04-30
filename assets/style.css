@@ -260,3 +260,21 @@ a:hover {
 .create-post-trigger:hover {
     background-color: #4e4f50;
 }
+/* Facebook UI Styles */
+.hover-bg-dark:hover {
+    background-color: var(--bg-hover);
+}
+.w-30px {
+    width: 30px;
+}
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

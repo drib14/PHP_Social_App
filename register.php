@@ -50,7 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniSocial - Sign Up</title>
+    <title>Socialize - Sign Up</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -170,7 +170,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="auth-brand">
             <div class="auth-brand-content ps-5">
                 <h1>Join the Club</h1>
-                <p>Create a MiniSocial account to start sharing photos, videos, and thoughts with the people you care about.</p>
+                <p>Create a Socialize account to start sharing photos, videos, and thoughts with the people you care about.</p>
             </div>
         </div>
 
@@ -178,7 +178,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="auth-form-container">
             <div class="glass-card">
                 <div class="d-lg-none text-center mb-4">
-                    <h1 class="fw-bold" style="color: var(--accent-color);"><i class="fa-brands fa-envira me-2"></i>MiniSocial</h1>
+                    <h1 class="fw-bold" style="color: var(--accent-color);"><i class="fa-brands fa-envira me-2"></i>Socialize</h1>
                 </div>
 
                 <div class="text-center mb-4">

@@ -214,26 +214,26 @@ try {
         "ALTER TABLE messages ADD CONSTRAINT fk_message_chatgroup FOREIGN KEY (chat_group_id) REFERENCES chat_groups(id) ON DELETE CASCADE"
     ];
 
-    // Check if the posts table needs updating by checking for audience column
-    $check_posts = $conn->query("SHOW COLUMNS FROM posts LIKE 'audience'");
-    if ($check_posts && $check_posts->num_rows == 0) {
-        // Drop LONGBLOB columns if they exist from previous schema
-        $drop_blobs = [
-            "ALTER TABLE posts DROP COLUMN media_data",
-            "ALTER TABLE users DROP COLUMN profile_pic",
-            "ALTER TABLE users DROP COLUMN cover_photo",
-            "ALTER TABLE messages DROP COLUMN media_data"
-        ];
-        foreach ($drop_blobs as $sql) {
-            try { $conn->query($sql); } catch (Exception $e) {}
+    // Apply alter queries unconditionally (IF NOT EXISTS will prevent errors)
+    foreach ($alter_queries as $sql) {
+        try {
+            $conn->query($sql);
+        } catch (Exception $e) {
+            // Ignore individual alter errors if constraints already exist
         }
+    }
 
-        foreach ($alter_queries as $sql) {
-            try {
-                $conn->query($sql);
-            } catch (Exception $e) {
-                // Ignore individual alter errors if constraints already exist
-            }
+    // Convert longblob back to varchar if needed or drop and recreate.
+    // The previous schema used LONGBLOB, we need to convert to VARCHAR(500) if it is still LONGBLOB.
+    $check_user_cover = $conn->query("SHOW COLUMNS FROM users LIKE 'cover_photo'");
+    if ($check_user_cover && $check_user_cover->num_rows > 0) {
+        $row = $check_user_cover->fetch_assoc();
+        if (strpos(strtolower($row['Type']), 'blob') !== false) {
+             // We can't simply alter column type easily without dropping if it contains blob data,
+             // But since it's a new version, dropping and adding might lose data.
+             // We will alter the column to VARCHAR(500).
+             try { $conn->query("ALTER TABLE users MODIFY COLUMN cover_photo VARCHAR(500) NULL"); } catch(Exception $e) {}
+             try { $conn->query("ALTER TABLE users MODIFY COLUMN profile_pic VARCHAR(500) NULL"); } catch(Exception $e) {}
         }
     }
 } catch (mysqli_sql_exception $e) {
