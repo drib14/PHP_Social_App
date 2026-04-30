@@ -4,9 +4,18 @@
  * Uploads a file directly to Cloudinary using their REST API.
  */
 function uploadToCloudinary($file_tmp_path, $resource_type = 'auto') {
-    $cloud_name = 'dwquuisuj';
-    $api_key = '655351295167741';
-    $api_secret = 'F0UAKwbXYzDbcTbFr43iwL0D0qQ';
+    // Read from environment variables to prevent exposing secrets in source code
+    $cloud_name = getenv('CLOUDINARY_CLOUD_NAME') ?: 'YOUR_CLOUD_NAME';
+    $api_key = getenv('CLOUDINARY_API_KEY') ?: 'YOUR_API_KEY';
+    $api_secret = getenv('CLOUDINARY_API_SECRET') ?: 'YOUR_API_SECRET';
+
+    // Fallback logic for local environment without env vars set natively
+    if ($cloud_name === 'YOUR_CLOUD_NAME' && file_exists(__DIR__ . '/.env')) {
+        $env = parse_ini_file(__DIR__ . '/.env');
+        $cloud_name = $env['CLOUDINARY_CLOUD_NAME'] ?? '';
+        $api_key = $env['CLOUDINARY_API_KEY'] ?? '';
+        $api_secret = $env['CLOUDINARY_API_SECRET'] ?? '';
+    }
 
     $url = "https://api.cloudinary.com/v1_1/{$cloud_name}/{$resource_type}/upload";
 

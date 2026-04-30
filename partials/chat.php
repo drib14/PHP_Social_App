@@ -221,8 +221,11 @@
                 <i class="fa-solid fa-up-right-and-down-left-from-center text-muted cursor-pointer" onclick="closeChatPopup()"></i>
             </div>
         </div>
-        <div class="p-2 border-bottom border-secondary">
-            <input type="text" class="form-control bg-dark border-0 rounded-pill" placeholder="Search Messenger" style="font-size: 0.85rem;">
+        <div class="p-2 border-bottom border-secondary position-relative">
+            <input type="text" id="chat-search-input" class="form-control bg-dark border-0 rounded-pill" placeholder="Search Messenger" style="font-size: 0.85rem; color: var(--text-primary);">
+            <div id="chat-search-results" class="position-absolute w-100 bg-secondary rounded shadow-lg d-none" style="top: 100%; left: 0; z-index: 10; max-height: 250px; overflow-y: auto;">
+                <!-- Search results injected here -->
+            </div>
         </div>
         <div class="chat-messages" id="contacts-list" style="padding: 0;">
             <!-- Contacts loaded via JS -->
@@ -288,6 +291,61 @@
     const viewConvo = document.getElementById('chat-view-convo');
     const contactsList = document.getElementById('contacts-list');
     const convoMessages = document.getElementById('convo-messages');
+
+    // Chat Search Logic
+    const chatSearchInput = document.getElementById('chat-search-input');
+    const chatSearchResults = document.getElementById('chat-search-results');
+    let searchTimeout = null;
+
+    chatSearchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+
+        if (query.length === 0) {
+            chatSearchResults.classList.add('d-none');
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch(`api_chat.php?action=search_users&query=${encodeURIComponent(query)}`);
+                const users = await res.json();
+
+                chatSearchResults.innerHTML = '';
+                if (users.length > 0) {
+                    users.forEach(u => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 border-bottom border-dark cursor-pointer bg-hover d-flex align-items-center gap-2';
+                        div.innerHTML = `
+                            <div class="avatar-placeholder rounded-circle" style="width: 32px; height: 32px; font-size: 0.8rem; flex-shrink: 0; ${u.profile_pic ? 'background-image: url('+u.profile_pic+'); background-size: cover;' : ''}">
+                                ${u.profile_pic ? '' : u.initial}
+                            </div>
+                            <div class="fw-bold text-white fs-6">${u.name}</div>
+                        `;
+                        div.onclick = () => {
+                            chatSearchResults.classList.add('d-none');
+                            chatSearchInput.value = '';
+                            openConversation(u.id, u.name, u.initial, u.type);
+                        };
+                        chatSearchResults.appendChild(div);
+                    });
+                    chatSearchResults.classList.remove('d-none');
+                } else {
+                    chatSearchResults.innerHTML = '<div class="p-3 text-center text-muted">No users found</div>';
+                    chatSearchResults.classList.remove('d-none');
+                }
+            } catch (e) {
+                console.error("Search failed", e);
+            }
+        }, 300);
+    });
+
+    // Close search results if clicked outside
+    document.addEventListener('click', (e) => {
+        if (!chatSearchResults.contains(e.target) && e.target !== chatSearchInput) {
+            chatSearchResults.classList.add('d-none');
+        }
+    });
 
     // Toggle Chat Popup
     mainTrigger.addEventListener('click', () => {

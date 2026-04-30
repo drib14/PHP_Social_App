@@ -214,22 +214,26 @@ try {
         "ALTER TABLE messages ADD CONSTRAINT fk_message_chatgroup FOREIGN KEY (chat_group_id) REFERENCES chat_groups(id) ON DELETE CASCADE"
     ];
 
-    // Drop LONGBLOB columns if they exist from previous schema
-    $drop_blobs = [
-        "ALTER TABLE posts DROP COLUMN media_data",
-        "ALTER TABLE users DROP COLUMN profile_pic", // Need to change type, drop first
-        "ALTER TABLE users DROP COLUMN cover_photo",
-        "ALTER TABLE messages DROP COLUMN media_data"
-    ];
-    foreach ($drop_blobs as $sql) {
-        try { $conn->query($sql); } catch (Exception $e) {}
-    }
+    // Check if the posts table needs updating by checking for audience column
+    $check_posts = $conn->query("SHOW COLUMNS FROM posts LIKE 'audience'");
+    if ($check_posts && $check_posts->num_rows == 0) {
+        // Drop LONGBLOB columns if they exist from previous schema
+        $drop_blobs = [
+            "ALTER TABLE posts DROP COLUMN media_data",
+            "ALTER TABLE users DROP COLUMN profile_pic",
+            "ALTER TABLE users DROP COLUMN cover_photo",
+            "ALTER TABLE messages DROP COLUMN media_data"
+        ];
+        foreach ($drop_blobs as $sql) {
+            try { $conn->query($sql); } catch (Exception $e) {}
+        }
 
-    foreach ($alter_queries as $sql) {
-        try {
-            $conn->query($sql);
-        } catch (Exception $e) {
-            // Ignore alter errors if constraints already exist
+        foreach ($alter_queries as $sql) {
+            try {
+                $conn->query($sql);
+            } catch (Exception $e) {
+                // Ignore individual alter errors if constraints already exist
+            }
         }
     }
 } catch (mysqli_sql_exception $e) {

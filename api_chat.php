@@ -94,6 +94,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         echo json_encode($conversations);
         exit;
     }
+    elseif ($action === 'search_users') {
+        $query = $_GET['query'] ?? '';
+
+        if (empty($query)) {
+            echo json_encode([]);
+            exit;
+        }
+
+        $search_term = "%{$query}%";
+        $sql = "SELECT id, name, profile_pic FROM users WHERE name LIKE ? AND id != ? LIMIT 10";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("si", $search_term, $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $users = [];
+        while ($row = $result->fetch_assoc()) {
+            $users[] = [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'initial' => strtoupper(substr($row['name'], 0, 1)),
+                'profile_pic' => $row['profile_pic'],
+                'type' => 'user'
+            ];
+        }
+
+        echo json_encode($users);
+        exit;
+    }
     elseif ($action === 'get_messages') {
         $chat_type = $_GET['chat_type'] ?? 'user';
         $target_id = $_GET['target_id'] ?? 0;

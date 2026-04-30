@@ -131,7 +131,7 @@ $posts_result = $posts_stmt->get_result();
             <!-- Actions -->
             <div class="pb-2 d-flex gap-2 justify-content-center justify-content-md-end w-100 w-md-auto mt-3 mt-md-0">
                 <?php if ($current_user_id == $profile_user_id): ?>
-                    <a href="create-post.php" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i> Add to story</a>
+                    <!-- "Add to story" omitted from MVP to avoid feature confusion -->
                     <a href="edit-profile.php" class="btn btn-secondary"><i class="fa-solid fa-pen me-1"></i> Edit profile</a>
                 <?php else: ?>
                     <form method="POST" action="follow.php" class="m-0">
@@ -152,9 +152,9 @@ $posts_result = $posts_stmt->get_result();
         <!-- Tabs -->
         <div class="d-flex gap-4 mt-2 px-2 fw-semibold text-muted">
             <div class="py-3 text-primary border-bottom border-3 border-primary" style="color: var(--accent-color) !important; border-color: var(--accent-color) !important;">Posts</div>
-            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">About</div>
-            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">Friends</div>
-            <div class="py-3 cursor-pointer hover-bg-light rounded px-3">Photos</div>
+            <div class="py-3 text-muted px-3">About</div>
+            <div class="py-3 text-muted px-3">Friends</div>
+            <div class="py-3 text-muted px-3">Photos</div>
         </div>
     </div>
 </div>
@@ -165,11 +165,21 @@ $posts_result = $posts_stmt->get_result();
         <div class="card p-3 mb-3">
             <h5 class="fw-bold mb-3">Intro</h5>
             <p class="text-center text-muted mb-3"><?= htmlspecialchars($user['email']) ?></p>
-            <button class="btn btn-secondary w-100 mb-3 fw-bold">Edit bio</button>
+            <?php if (!empty($user['bio'])): ?>
+                <p class="text-center text-white fst-italic mb-3">"<?= htmlspecialchars($user['bio']) ?>"</p>
+            <?php endif; ?>
+
+            <?php if ($current_user_id == $profile_user_id): ?>
+                <a href="edit-profile.php" class="btn btn-secondary w-100 mb-3 fw-bold">Edit bio</a>
+            <?php endif; ?>
+
             <div class="d-flex align-items-center mb-3 text-muted">
                 <i class="fa-solid fa-clock me-2 fs-5"></i> Joined <?= date('F Y') ?>
             </div>
-            <button class="btn btn-secondary w-100 fw-bold">Edit details</button>
+
+            <?php if ($current_user_id == $profile_user_id): ?>
+                <a href="edit-profile.php" class="btn btn-secondary w-100 fw-bold">Edit details</a>
+            <?php endif; ?>
         </div>
     </div>
 
