@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS reactions (
   target_type ENUM('post','comment','reply') NOT NULL,
   target_id INT NOT NULL,
   reaction_key VARCHAR(30) NOT NULL,
-  reaction_label VARCHAR(40) NOT NULL,
+  reaction_label VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_reaction (user_id, target_type, target_id),
   INDEX idx_target (target_type, target_id),

@@ -39,26 +39,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (isset($_POST['react'])) {
         $k=$_POST['reaction_key'];
-        $label=$_POST['reaction_label'];
+        $label = '';
         if($k==='custom'){
             if (!empty($_FILES['custom_reaction_image']['tmp_name'])) {
-                $label = Cloudinary::upload($_FILES['custom_reaction_image']['tmp_name']);
-                $label = '<img src="'.$label.'" style="height:20px; width:auto; vertical-align:middle; border-radius:4px;">';
+                $url = Cloudinary::upload($_FILES['custom_reaction_image']['tmp_name']);
+                if($url) {
+                    $label = '<img src="'.htmlspecialchars($url, ENT_QUOTES).'" style="height:20px; width:auto; vertical-align:middle; border-radius:4px;">';
+                }
             } else {
                 $label = htmlspecialchars(trim($_POST['custom_reaction_emoji'] ?? ''));
             }
             $k='custom';
+        } else {
+            // Validate and get label for predefined reactions
+            $valid_options = react_options();
+            foreach($valid_options as $opt) {
+                if($opt['key'] === $k) {
+                    $label = $opt['label']; // This is trusted HTML from the server
+                    break;
+                }
+            }
         }
-        $tt=$_POST['target_type'];
-        $tid=(int)$_POST['target_id'];
-        db()->prepare('INSERT INTO reactions(user_id,target_type,target_id,reaction_key,reaction_label) VALUES(:u,:t,:id,:k,:l) ON DUPLICATE KEY UPDATE reaction_key=VALUES(reaction_key),reaction_label=VALUES(reaction_label)')->execute(['u'=>$u['id'],'t'=>$tt,'id'=>$tid,'k'=>$k,'l'=>$label]);
 
-        $owner = null;
-        if ($tt === 'post') $owner = get_post_owner($tid);
-        elseif ($tt === 'comment') $owner = get_comment_owner($tid);
-        elseif ($tt === 'reply') $owner = get_reply_owner($tid);
+        if ($label !== '') {
+            $tt=$_POST['target_type'];
+            $tid=(int)$_POST['target_id'];
+            db()->prepare('INSERT INTO reactions(user_id,target_type,target_id,reaction_key,reaction_label) VALUES(:u,:t,:id,:k,:l) ON DUPLICATE KEY UPDATE reaction_key=VALUES(reaction_key),reaction_label=VALUES(reaction_label)')->execute(['u'=>$u['id'],'t'=>$tt,'id'=>$tid,'k'=>$k,'l'=>$label]);
 
-        if ($owner) add_notification($owner, $u['id'], 'reaction', $tt, $tid, "reacted to your " . $tt);
+            $owner = null;
+            if ($tt === 'post') $owner = get_post_owner($tid);
+            elseif ($tt === 'comment') $owner = get_comment_owner($tid);
+            elseif ($tt === 'reply') $owner = get_reply_owner($tid);
+
+            if ($owner) add_notification($owner, $u['id'], 'reaction', $tt, $tid, "reacted to your " . $tt);
+        }
     }
 
     header('Location: feed.php'); exit;
@@ -165,9 +179,7 @@ function renderReactions($type, $id, $reactionsMap, $u) {
                 </div>
             </div>
             <nav class="nav flex-column gap-2">
-                <a class="nav-link active" href="#"><i class="fa-solid fa-house me-2"></i> Feed</a>
-                <a class="nav-link" href="#"><i class="fa-solid fa-user-group me-2"></i> Friends</a>
-                <a class="nav-link" href="#"><i class="fa-solid fa-bookmark me-2"></i> Saved</a>
+                <a class="nav-link active" href="feed.php"><i class="fa-solid fa-house me-2"></i> Feed</a>
             </nav>
         </aside>
     </div>
@@ -182,13 +194,19 @@ function renderReactions($type, $id, $reactionsMap, $u) {
                     <div class="avatar"><?= initials($u['name']) ?></div>
                     <textarea class="form-control" name="body" rows="2" placeholder="What's on your mind, <?= htmlspecialchars(explode(' ', $u['name'])[0]) ?>?" required></textarea>
                 </div>
+
+                <div id="mediaPreviewContainer" class="position-relative mb-2 d-none">
+                    <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2 bg-dark rounded-circle p-2" aria-label="Remove" onclick="document.getElementById('mediaUpload').value=''; document.getElementById('mediaPreviewContainer').classList.add('d-none'); document.getElementById('mediaPreview').src='';"></button>
+                    <img id="mediaPreview" src="" alt="Preview" class="w-100 rounded" style="max-height: 300px; object-fit: contain; background: #000;">
+                </div>
+
                 <hr class="border-secondary mb-2 mt-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <label for="mediaUpload" class="action-btn text-success m-0" style="width: auto; cursor: pointer;">
                             <i class="fa-solid fa-image"></i> Photo/Video
                         </label>
-                        <input type="file" id="mediaUpload" name="media" accept="image/*,video/*" class="d-none">
+                        <input type="file" id="mediaUpload" name="media" accept="image/*,video/*" class="d-none" onchange="previewMedia(this)">
                     </div>
                     <button type="submit" name="new_post" class="btn btn-primary px-4 rounded-pill">Post</button>
                 </div>
@@ -219,7 +237,7 @@ function renderReactions($type, $id, $reactionsMap, $u) {
             <hr class="border-secondary my-2">
 
             <?php list($userReact, $reactSummary) = renderReactions('post', $p['id'], $reactionsMap, $u); ?>
-            <?php if($reactSummary) echo '<div class="px-2 pb-2 border-bottom border-secondary">'.$reactSummary.'</div>'; ?>
+            <?php if($reactSummary) echo '<div class="px-2 pb-2 border-bottom border-secondary text-muted">'.$reactSummary.'</div>'; ?>
 
             <div class="d-flex justify-content-between px-2 pt-2 pb-2 position-relative">
 
@@ -239,7 +257,7 @@ function renderReactions($type, $id, $reactionsMap, $u) {
 
                             <?php foreach(react_options() as $r): ?>
                                 <?php if($r['key'] !== 'custom'): ?>
-                                    <button type="submit" name="react" class="btn btn-sm btn-outline-secondary border-0 fs-5" title="<?= strip_tags($r['label']) ?>" onclick="this.form.reaction_key.value='<?= $r['key'] ?>'; this.form.reaction_label.value='<?= htmlspecialchars($r['label'], ENT_QUOTES) ?>';">
+                                    <button type="submit" name="react" class="btn btn-sm btn-outline-secondary border-0 fs-5" title="<?= htmlspecialchars(strip_tags($r['label'])) ?>" onclick="this.form.reaction_key.value='<?= $r['key'] ?>'; this.form.reaction_label.value='<?= htmlspecialchars($r['label'], ENT_QUOTES) ?>';">
                                         <?= $r['label'] ?>
                                     </button>
                                 <?php endif; ?>
@@ -285,7 +303,7 @@ function renderReactions($type, $id, $reactionsMap, $u) {
                             <div class="d-flex align-items-center gap-3 ms-2 mt-1">
                                 <small class="text-muted fw-bold dropdown">
                                     <span class="dropdown-toggle" style="cursor:pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                                        <?= $cReact ? strip_tags($cReact['reaction_label']) : 'React' ?>
+                                        <?= $cReact ? $cReact['reaction_label'] : 'React' ?>
                                     </span>
                                     <div class="dropdown-menu p-1 shadow-sm border-secondary" style="background: var(--card);">
                                         <form method="post" enctype="multipart/form-data" class="d-flex gap-1">
@@ -322,7 +340,7 @@ function renderReactions($type, $id, $reactionsMap, $u) {
                                             <div class="d-flex align-items-center gap-3 ms-2 mt-1">
                                                 <small class="text-muted fw-bold dropdown">
                                                     <span class="dropdown-toggle" style="cursor:pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                                                        <?= $rReact ? strip_tags($rReact['reaction_label']) : 'React' ?>
+                                                        <?= $rReact ? $rReact['reaction_label'] : 'React' ?>
                                                     </span>
                                                     <div class="dropdown-menu p-1 shadow-sm border-secondary" style="background: var(--card);">
                                                         <form method="post" enctype="multipart/form-data" class="d-flex gap-1">
@@ -407,11 +425,14 @@ function renderReactions($type, $id, $reactionsMap, $u) {
             <div class="tab-content" id="myTabContent">
               <div class="tab-pane fade show active" id="emoji-pane" role="tabpanel" tabindex="0">
                   <label class="form-label text-white">Pick an emoji or type text:</label>
-                  <input type="text" name="custom_reaction_emoji" class="form-control bg-dark text-white border-secondary" placeholder="e.g. 🍕 or 🔥">
+                  <input type="text" id="emojiPickerInput" name="custom_reaction_emoji" class="form-control bg-dark text-white border-secondary" placeholder="Click to select emoji...">
               </div>
               <div class="tab-pane fade" id="image-pane" role="tabpanel" tabindex="0">
                   <label class="form-label text-white">Upload an image reaction:</label>
-                  <input type="file" name="custom_reaction_image" class="form-control bg-dark text-white border-secondary" accept="image/*">
+                  <input type="file" id="customReactionImage" name="custom_reaction_image" class="form-control bg-dark text-white border-secondary" accept="image/*" onchange="previewReactionImage(this)">
+                  <div id="reactionPreviewContainer" class="mt-3 text-center d-none">
+                      <img id="reactionImagePreview" src="" alt="Reaction Preview" style="max-height: 100px; border-radius: 8px;">
+                  </div>
               </div>
             </div>
 
@@ -426,7 +447,57 @@ function renderReactions($type, $id, $reactionsMap, $u) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Include PicMo emoji picker script -->
+<script src="https://cdn.jsdelivr.net/npm/picmo@5.8.1/dist/umd/picmo.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@picmo/popup-picker@5.8.1/dist/umd/picmo-popup.js"></script>
+
 <script>
+    // Preview Post Media
+    function previewMedia(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('mediaPreview').src = e.target.result;
+                document.getElementById('mediaPreviewContainer').classList.remove('d-none');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Preview Reaction Image
+    function previewReactionImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('reactionImagePreview').src = e.target.result;
+                document.getElementById('reactionPreviewContainer').classList.remove('d-none');
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            document.getElementById('reactionPreviewContainer').classList.add('d-none');
+        }
+    }
+
+    // Initialize Emoji Picker
+    document.addEventListener('DOMContentLoaded', () => {
+        const input = document.getElementById('emojiPickerInput');
+        const picker = picmoPopup.createPopup({
+            rootElement: document.body,
+        }, {
+            referenceElement: input,
+            triggerElement: input,
+            position: 'bottom-start'
+        });
+
+        input.addEventListener('focus', () => {
+            picker.toggle();
+        });
+
+        picker.addEventListener('emoji:select', selection => {
+            input.value += selection.emoji;
+        });
+    });
+
     function setCustomReactTarget(type, id) {
         document.getElementById('customTargetType').value = type;
         document.getElementById('customTargetId').value = id;
