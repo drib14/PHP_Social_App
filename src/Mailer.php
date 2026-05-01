@@ -1,82 +1,19 @@
 <?php
-
 class Mailer
 {
-    public static function sendResetCode(string $toEmail, string $code): bool
+    private static function smtpSend(string $to, string $subject, string $html, string $text): bool
     {
         $config = require __DIR__ . '/../config.php';
-        $host = $config['mail']['host'];
-        $port = (int)$config['mail']['port'];
-        $user = $config['mail']['user'];
-        $pass = $config['mail']['pass'];
-        $from = $config['mail']['from'];
-        $fromName = 'Socialize Security';
-
-        $subject = 'Socialize Password Reset Verification Code';
-        $html = self::buildTemplate($code);
-
-        $socket = fsockopen('ssl://' . $host, $port, $errno, $errstr, 20);
-        if (!$socket) {
-            error_log("SMTP connection failed: {$errno} {$errstr}");
-            return false;
-        }
-
-        $read = static function () use ($socket): string {
-            $response = '';
-            while ($line = fgets($socket, 515)) {
-                $response .= $line;
-                if (isset($line[3]) && $line[3] === ' ') {
-                    break;
-                }
-            }
-            return $response;
-        };
-
-        $send = static function (string $command) use ($socket): void {
-            fwrite($socket, $command . "\r\n");
-        };
-
-        $boundary = 'bnd_' . bin2hex(random_bytes(8));
-        $read();
-        $send('EHLO localhost'); $read();
-        $send('AUTH LOGIN'); $read();
-        $send(base64_encode($user)); $read();
-        $send(base64_encode($pass)); $read();
-        $send('MAIL FROM:<' . $from . '>'); $read();
-        $send('RCPT TO:<' . $toEmail . '>'); $read();
-        $send('DATA'); $read();
-
-        $headers = "From: {$fromName} <{$from}>\r\n" .
-            "To: <{$toEmail}>\r\n" .
-            "Subject: {$subject}\r\n" .
-            "MIME-Version: 1.0\r\n" .
-            "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n\r\n";
-
-        $message = "--{$boundary}\r\n" .
-            "Content-Type: text/plain; charset=UTF-8\r\n\r\n" .
-            "Your Socialize verification code is {$code}. It expires in 15 minutes.\r\n\r\n" .
-            "--{$boundary}\r\n" .
-            "Content-Type: text/html; charset=UTF-8\r\n\r\n" .
-            $html . "\r\n\r\n" .
-            "--{$boundary}--";
-
-        $send($headers . $message . "\r\n.");
-        $result = $read();
-        $send('QUIT');
-        fclose($socket);
-
-        return str_starts_with($result, '250');
+        $socket = fsockopen('ssl://' . $config['mail']['host'], (int)$config['mail']['port'], $errno, $errstr, 20);
+        if (!$socket) { error_log("SMTP failed: $errno $errstr"); return false; }
+        $read=function()use($socket){$r='';while($l=fgets($socket,515)){$r.=$l;if(isset($l[3])&&$l[3]===' ')break;}return $r;};
+        $send=function($c)use($socket){fwrite($socket,$c."\r\n");};
+        $boundary='bnd_'.bin2hex(random_bytes(8)); $from=$config['mail']['from'];
+        $read();$send('EHLO localhost');$read();$send('AUTH LOGIN');$read();$send(base64_encode($config['mail']['user']));$read();$send(base64_encode($config['mail']['pass']));$read();$send('MAIL FROM:<'.$from.'>');$read();$send('RCPT TO:<'.$to.'>');$read();$send('DATA');$read();
+        $headers="From: Socialize <{$from}>\r\nTo:<{$to}>\r\nSubject: {$subject}\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n\r\n";
+        $msg="--{$boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n{$text}\r\n\r\n--{$boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{$html}\r\n\r\n--{$boundary}--";
+        $send($headers.$msg."\r\n.");$res=$read();$send('QUIT');fclose($socket); return str_starts_with($res,'250');
     }
-
-    private static function buildTemplate(string $code): string
-    {
-        return '<!doctype html><html><body style="margin:0;padding:0;background:#f3faf7;font-family:Arial,sans-serif;color:#0b3b30">'
-            . '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0"><tr><td align="center">'
-            . '<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #d8f2e8">'
-            . '<tr><td style="background:linear-gradient(90deg,#059669,#10b981);padding:24px 28px;color:#fff"><h1 style="margin:0;font-size:24px">Socialize Security</h1><p style="margin:6px 0 0;opacity:.95">Password reset verification</p></td></tr>'
-            . '<tr><td style="padding:28px"><p style="font-size:15px;margin:0 0 12px">Hi there,</p><p style="font-size:15px;line-height:1.6;margin:0 0 20px">Use the verification code below to reset your Socialize password.</p>'
-            . '<div style="text-align:center;margin:18px 0"><span style="display:inline-block;padding:14px 22px;border-radius:12px;border:1px dashed #10b981;font-size:32px;letter-spacing:8px;font-weight:700;color:#065f46;background:#ecfdf5">' . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') . '</span></div>'
-            . '<p style="font-size:14px;line-height:1.6;margin:0;color:#375c53">This code expires in <strong>15 minutes</strong>. If you did not request this reset, you can safely ignore this email.</p>'
-            . '<p style="font-size:13px;margin:22px 0 0;color:#4d7c70">— The Socialize Team</p></td></tr></table></td></tr></table></body></html>';
-    }
+    public static function sendResetCode(string $to,string $code): bool { $subject='Socialize Password Reset Code'; $text="Your reset code is {$code}. Expires in 15 minutes."; $html='<div style="font-family:Arial;background:#f0fdf4;padding:24px"><div style="max-width:620px;margin:auto;background:#fff;border:1px solid #d1fae5;border-radius:14px"><div style="padding:18px;background:linear-gradient(90deg,#059669,#10b981);color:#fff"><h2>Socialize Security</h2></div><div style="padding:22px"><p>Use this code to reset your password:</p><div style="font-size:34px;letter-spacing:10px;font-weight:800;color:#065f46">'.htmlspecialchars($code,ENT_QUOTES,'UTF-8').'</div></div></div></div>'; return self::smtpSend($to,$subject,$html,$text); }
+    public static function sendWelcome(string $to,string $name): bool { $subject='Welcome to Socialize 🎉'; $text="Welcome {$name}! Your Socialize account is ready. Start posting and connecting today."; $html='<div style="font-family:Arial;background:#ecfdf5;padding:24px"><table width="100%"><tr><td align="center"><table width="620" style="background:#fff;border-radius:16px;border:1px solid #a7f3d0"><tr><td style="padding:24px;background:linear-gradient(90deg,#047857,#10b981);color:#fff"><h1 style="margin:0">Welcome to Socialize, '.htmlspecialchars($name,ENT_QUOTES,'UTF-8').'!</h1><p style="margin-top:8px">Your community is waiting.</p></td></tr><tr><td style="padding:24px;color:#064e3b"><p style="line-height:1.6">Thanks for joining Socialize. Share updates, react to posts, and connect in real-time with people who matter.</p><p style="line-height:1.6">✨ Create your first post, explore the feed, and start conversations.</p><a href="#" style="display:inline-block;padding:12px 18px;background:#10b981;color:#03291f;border-radius:10px;text-decoration:none;font-weight:700">Open Socialize</a><p style="margin-top:18px;color:#065f46;font-size:13px">Need help? Reply to this email and our team will assist you.</p></td></tr></table></td></tr></table></div>'; return self::smtpSend($to,$subject,$html,$text); }
 }
