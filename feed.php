@@ -2,6 +2,7 @@
 require_once __DIR__ . '/src/bootstrap.php';
 require_auth();
 $u = current_user();
+if (!$u) { session_unset(); session_destroy(); header('Location: login.php'); exit; }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf()) die('csrf');
     if (isset($_POST['new_post'])) db()->prepare('INSERT INTO posts(user_id,body) VALUES(:u,:b)')->execute(['u'=>$u['id'],'b'=>trim($_POST['body'])]);
@@ -13,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $posts = db()->query('SELECT p.*,u.name FROM posts p JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 40')->fetchAll();
 ?>
-<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='assets/style.css'><title>Socialize Feed</title></head><body><div class='panel'><div class='container' style='width:min(820px,94vw)'><h1>Socialize Feed</h1><p>Profile: <strong><?=initials($u['name'])?></strong></p><form method='post'><input type='hidden' name='csrf_token' value='<?=csrf_token()?>'><textarea name='body' required style='width:100%;height:90px'></textarea><button name='new_post'>Post</button></form><hr>
+<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='assets/style.css'><title>Socialize Feed</title></head><body><div class='panel'><div class='container' style='width:min(820px,94vw)'><h1>Socialize Feed</h1><p>Profile: <strong><?=initials($u['name'] ?? '')?></strong></p><form method='post'><input type='hidden' name='csrf_token' value='<?=csrf_token()?>'><textarea name='body' required style='width:100%;height:90px'></textarea><button name='new_post'>Post</button></form><hr>
 <?php foreach($posts as $p): ?><div><strong><?=htmlspecialchars($p['name'])?></strong><p><?=nl2br(htmlspecialchars($p['body']))?></p>
 <form method='post'><input type='hidden' name='csrf_token' value='<?=csrf_token()?>'><input type='hidden' name='target_type' value='post'><input type='hidden' name='target_id' value='<?=$p['id']?>'><select name='reaction_key'><?php foreach(react_options() as $r):?><option value='<?=$r['key']?>'><?=$r['label']?></option><?php endforeach;?></select><input name='reaction_label' placeholder='label'><input name='custom_reaction' placeholder='custom'><button name='react'>React</button></form>
 <form method='post'><input type='hidden' name='csrf_token' value='<?=csrf_token()?>'><input type='hidden' name='post_id' value='<?=$p['id']?>'><input name='comment_body' required><button name='comment'>Comment</button></form>
