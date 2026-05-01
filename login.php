@@ -28,4 +28,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 ?>
-<!doctype html><html><head><meta charset="utf-8"><title>Login | Socialize</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="auth-layout"><aside class="hero"><div class="hero-content"><h2 class="brand">Socialize</h2><p class="tag">Your Socialize account is one click away.</p></div></aside><main class="panel"><div class="container"><h1>Welcome back</h1><?php if($m=flash('error')): ?><div class="alert error"><?=htmlspecialchars($m)?></div><?php endif; ?><?php if($m=flash('success')): ?><div class="alert success"><?=htmlspecialchars($m)?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?=csrf_token()?>"><label>Email</label><input type="email" name="email" required><label>Password</label><input type="password" name="password" required><button>Login</button></form><div class="links"><a href="register.php">Create account</a><a href="forgot_password.php">Forgot password?</a></div></div></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Socialize</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="auth-layout">
+    <aside class="hero">
+        <div class="hero-content">
+            <h1 class="brand">Socialize</h1>
+            <p class="tag">Connect with friends and the world around you on Socialize.</p>
+        </div>
+    </aside>
+    <main class="panel">
+        <div class="container">
+            <h2 class="mb-4 text-center text-white">Log In</h2>
+            <?php if ($m = flash('error')): ?><div class="alert alert-danger"><?= htmlspecialchars($m) ?></div><?php endif; ?>
+            <?php if ($m = flash('success')): ?><div class="alert alert-success"><?= htmlspecialchars($m) ?></div><?php endif; ?>
+
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" required autofocus>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-3">Log In</button>
+            </form>
+
+            <div class="text-center mt-4">
+                <a href="forgot_password.php" class="text-decoration-none">Forgot Password?</a>
+                <hr class="border-secondary my-4">
+                <a href="register.php" class="btn btn-success w-100 fw-bold" style="background-color: #059669; border: none;">Create New Account</a>
+            </div>
+        </div>
+    </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

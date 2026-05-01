@@ -26,4 +26,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: login.php'); exit;
 }
 ?>
-<!doctype html><html><head><meta charset="utf-8"><title>Reset Password | Socialize</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="auth-layout"><aside class="hero"><div class="hero-content"><h2 class="brand">Socialize</h2><p class="tag">You’re verified. Create a strong new password to secure your account.</p></div></aside><main class="panel"><div class="container"><h1>Create new password</h1><?php if($m=flash('error')): ?><div class="alert error"><?=htmlspecialchars($m)?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?=csrf_token()?>"><label>New password</label><input type="password" name="password" required><label>Confirm password</label><input type="password" name="confirm_password" required><button>Reset password</button></form></div></main></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reset Password | Socialize</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="auth-layout">
+    <aside class="hero">
+        <div class="hero-content">
+            <h1 class="brand">Socialize</h1>
+            <p class="tag">You’re verified. Create a strong new password to secure your account.</p>
+        </div>
+    </aside>
+    <main class="panel">
+        <div class="container">
+            <h2 class="mb-4 text-center text-white">Create new password</h2>
+            <?php if ($m = flash('error')): ?><div class="alert alert-danger"><?= htmlspecialchars($m) ?></div><?php endif; ?>
+
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+
+                <div class="mb-3">
+                    <label class="form-label">New password</label>
+                    <input type="password" class="form-control" name="password" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Confirm password</label>
+                    <input type="password" class="form-control" name="confirm_password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-3">Reset password</button>
+            </form>
+        </div>
+    </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

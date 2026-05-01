@@ -17,6 +17,11 @@ return [
         'from' => 'jhondribramirez7@gmail.com',
         'from_name' => 'PHP Auth App',
     ],
+    'cloudinary' => [
+        'cloud_name' => getenv('CLOUDINARY_CLOUD_NAME') ?: 'dwquuisuj',
+        'api_key' => getenv('CLOUDINARY_API_KEY') ?: '655351295167741',
+        'api_secret' => getenv('CLOUDINARY_API_SECRET') ?: 'F0UAKwbXYzDbcTbFr43iwL0D0qQ',
+    ],
     'app' => [
         'base_url' => 'http://localhost/PHP_Social_App',
     ],

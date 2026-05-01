@@ -33,7 +33,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 ?>
-<!doctype html><html><head><meta charset="utf-8"><title>Verify Code | Socialize</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="auth-layout"><aside class="hero"><div class="hero-content"><h2 class="brand">Socialize</h2><p class="tag">Enter the 6-digit code sent to your email to verify it’s really you.</p></div></aside><main class="panel"><div class="container"><h1>Verify your code</h1><?php if($m=flash('error')): ?><div class="alert error"><?=htmlspecialchars($m)?></div><?php endif; ?><form method="post"><input type="hidden" name="csrf_token" value="<?=csrf_token()?>"><input type="hidden" name="email" value="<?=htmlspecialchars($email)?>"><label>6-digit code</label><div class="code-grid"><?php for($i=1;$i<=6;$i++): ?><input name="d<?=$i?>" maxlength="1" inputmode="numeric" pattern="[0-9]" required><?php endfor; ?></div><button>Verify code</button></form><div class="links"><a href="forgot_password.php">Resend code</a></div></div></main></div>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verify Code | Socialize</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/style.css">
+    <style>
+        .code-grid { display: flex; gap: 0.5rem; justify-content: center; }
+        .code-grid input { width: 3rem; height: 3.5rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="auth-layout">
+    <aside class="hero">
+        <div class="hero-content">
+            <h1 class="brand">Socialize</h1>
+            <p class="tag">Enter the 6-digit code sent to your email to verify it’s really you.</p>
+        </div>
+    </aside>
+    <main class="panel">
+        <div class="container">
+            <h2 class="mb-4 text-center text-white">Verify Code</h2>
+            <?php if ($m = flash('error')): ?><div class="alert alert-danger"><?= htmlspecialchars($m) ?></div><?php endif; ?>
+            <?php if ($m = flash('success')): ?><div class="alert alert-success"><?= htmlspecialchars($m) ?></div><?php endif; ?>
+
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                <input type="hidden" name="email" value="<?= htmlspecialchars($email) ?>">
+
+                <div class="mb-4">
+                    <label class="form-label text-center w-100">6-digit code</label>
+                    <div class="code-grid">
+                        <?php for($i=1;$i<=6;$i++): ?>
+                            <input class="form-control" name="d<?=$i?>" maxlength="1" inputmode="numeric" pattern="[0-9]" required>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Verify code</button>
+            </form>
+
+            <div class="text-center mt-4">
+                <a href="forgot_password.php" class="text-decoration-none">Resend code</a>
+            </div>
+        </div>
+    </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const boxes = Array.from(document.querySelectorAll('.code-grid input'));
 boxes.forEach((box, idx) => {
@@ -58,4 +107,5 @@ boxes.forEach((box, idx) => {
 });
 if (boxes[0]) boxes[0].focus();
 </script>
-</body></html>
+</body>
+</html>
