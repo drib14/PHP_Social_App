@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($user && password_verify($password, $user['password_hash'])) {
         $_SESSION['user_id'] = $user['id'];
         flash('success', 'Logged in successfully.');
-        header('Location: dashboard.php');
+        header('Location: feed.php');
         exit;
     }
 

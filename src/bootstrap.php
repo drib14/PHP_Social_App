@@ -12,3 +12,12 @@ function require_auth(): void { if(!is_logged_in()){header('Location: login.php'
 function current_user(): ?array { if(!is_logged_in()) return null; $s=db()->prepare('SELECT * FROM users WHERE id=:id');$s->execute(['id'=>$_SESSION['user_id']]); return $s->fetch()?:null; }
 function initials(string $name): string { $parts=preg_split('/\s+/', trim($name)); $a=strtoupper(substr($parts[0]??'U',0,1)); $b=strtoupper(substr($parts[1]??'',0,1)); return $a.$b; }
 function react_options(): array { return [['key'=>'like','label'=>'👍 Like'],['key'=>'love','label'=>'❤️ Love'],['key'=>'laugh','label'=>'😂 Funny'],['key'=>'wow','label'=>'😮 Wow'],['key'=>'custom','label'=>'✨ Custom']]; }
+
+function ensure_schema(): void {
+    static $done=false; if($done) return; $done=true;
+    try {
+        $exists = db()->query("SHOW TABLES LIKE 'users'")->fetchColumn();
+        if(!$exists){ $sql=file_get_contents(__DIR__.'/../schema.sql'); foreach(array_filter(array_map('trim', explode(';',$sql))) as $stmt){ if($stmt!=='') db()->exec($stmt); } }
+    } catch (Throwable $e) { error_log('Schema init failed: '.$e->getMessage()); }
+}
+ensure_schema();
