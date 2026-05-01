@@ -10,7 +10,7 @@ return [
     ],
     'mail' => [
         'host' => 'smtp.gmail.com',
-        'port' => 587,
+        'port' => 465,
         'secure' => 'tls',
         'user' => 'jhondribramirez7@gmail.com',
         'pass' => 'pxvm fnfn zclm nuah',

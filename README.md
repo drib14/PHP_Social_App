@@ -1,21 +1,19 @@
-# Plain PHP Auth Form (XAMPP)
+# Socialize Auth (Plain PHP + XAMPP)
 
 Features:
-- Register / Login
+- Register / Login / Logout
 - Forgot password (email code)
-- Reset password
-- Modern dark UI
+- Verify code page with 6 separate digit inputs
+- Separate reset-password page after successful verification
+- Split-screen modern UI with banner image
 
 ## Setup
 1. Put project in `htdocs/PHP_Social_App`.
-2. Create database and tables:
-   ```sql
-   SOURCE /path/to/schema.sql;
-   ```
+2. Create database and tables with `schema.sql`.
 3. Update DB credentials in `config.php`.
 4. Start Apache + MySQL in XAMPP.
 5. Open `http://localhost/PHP_Social_App`.
 
-## Email notes
-This project uses PHP `mail()` in `src/Mailer.php`.
-For Gmail SMTP in XAMPP, configure `sendmail.ini`/`php.ini` or replace Mailer with PHPMailer SMTP.
+## Email delivery
+- Uses direct SMTP over SSL to Gmail (`smtp.gmail.com:465`) from `src/Mailer.php`.
+- Ensure OpenSSL is enabled in PHP and Gmail App Password is valid.
