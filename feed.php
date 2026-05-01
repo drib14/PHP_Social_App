@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $posts = db()->query('SELECT p.*,u.name FROM posts p JOIN users u ON u.id=p.user_id ORDER BY p.id DESC LIMIT 40')->fetchAll();
 ?>
 <!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='assets/style.css'><title>Socialize Feed</title></head><body class='feed-body'>
-<header class='topbar'><div class='logo'>Socialize</div><div class='search'>Search Socialize</div><div class='user-pill'><?=initials($u['name'] ?? '')?></div></header>
+<header class='topbar'><div class='logo'>Socialize</div><div class='search'>🔎 Search Socialize</div><div class='nav-icons'><div class='icon-btn' title='Home'>🏠</div><div class='icon-btn' title='Friends'>👥</div><div class='icon-btn' title='Watch'>🎬</div><div class='icon-btn' title='Groups'>🧩</div></div><div class='user-pill'><?=initials($u['name'] ?? '')?></div><a class='logout-btn' href='logout.php' onclick="event.preventDefault();document.getElementById('logoutForm').submit();">Logout</a><form id='logoutForm' method='post' action='logout.php' style='display:none'><input type='hidden' name='csrf_token' value='<?=csrf_token()?>'></form></header>
 <div class='feed-layout'>
 <aside class='left-rail card'><h3><?=htmlspecialchars($u['name'])?></h3><p>@<?=strtolower(str_replace(' ','',$u['name']))?></p></aside>
 <main class='center-feed'>
