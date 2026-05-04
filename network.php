@@ -78,7 +78,7 @@ function getAvatar($url, $username) {
 
 <script>
 function handleNetworkConnection(userId, action) {
-    $.post('api/connection.php', { user_id: userId, action: action }, function(response) {
+    $.post('<?php echo BASE_URL; ?>/api/connection.php', { user_id: userId, action: action }, function(response) {
         if(response.success) {
             location.reload();
         } else {

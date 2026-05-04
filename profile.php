@@ -172,14 +172,14 @@ if (!$is_own_profile) {
 <script>
     // Connection handling logic placeholder
     function handleConnection(userId, action) {
-        $.post('api/connection.php', { user_id: userId, action: action }, function(response) {
+        $.post('<?php echo BASE_URL; ?>/api/connection.php', { user_id: userId, action: action }, function(response) {
             location.reload(); // simple reload to update state
         });
     }
 
     // Load User Posts
     $(document).ready(function() {
-        $.get('api/get_posts.php?user_id=<?php echo $profile_id; ?>', function(res) {
+        $.get('<?php echo BASE_URL; ?>/api/get_posts.php?user_id=<?php echo $profile_id; ?>', function(res) {
             $('#profile-feed').html(res);
         });
     });

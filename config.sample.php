@@ -11,5 +11,5 @@ define('CLOUDINARY_API_KEY', '655351295167741');
 define('CLOUDINARY_API_SECRET', 'F0UAKwbXYzDbcTbFr43iwL0D0qQ');
 
 // Base URL configuration (modify according to your setup)
-define('BASE_URL', 'http://localhost:8000');
+define('BASE_URL', 'http://localhost/PHP_Social_App');
 ?>

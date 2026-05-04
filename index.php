@@ -97,7 +97,7 @@ $(document).ready(function() {
         btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Posting...');
 
         $.ajax({
-            url: 'api/create_post.php',
+            url: '<?php echo BASE_URL; ?>/api/create_post.php',
             type: 'POST',
             data: formData,
             contentType: false,
@@ -119,7 +119,7 @@ $(document).ready(function() {
 
     // Load feed function
     function loadFeed() {
-        $.get('api/get_posts.php', function(data) {
+        $.get('<?php echo BASE_URL; ?>/api/get_posts.php', function(data) {
             $('#news-feed').html(data);
         }).fail(function() {
             $('#news-feed').html('<div class="alert alert-danger">Error loading feed.</div>');
@@ -139,10 +139,10 @@ $(document).on('mouseenter', '.reaction-container', function() {
 
 function toggleReaction(postId, reactionType) {
     event.stopPropagation();
-    $.post('api/reaction.php', { post_id: postId, reaction: reactionType }, function(res) {
+    $.post('<?php echo BASE_URL; ?>/api/reaction.php', { post_id: postId, reaction: reactionType }, function(res) {
         if(res.success) {
             // Simple reload feed for immediate sync, can be optimized later
-            $.get('api/get_posts.php', function(data) {
+            $.get('<?php echo BASE_URL; ?>/api/get_posts.php', function(data) {
                 $('#news-feed').html(data);
             });
         }
@@ -168,11 +168,11 @@ function submitComment(postId) {
     let content = input.val().trim();
     if (content === '') return;
 
-    $.post('api/create_comment.php', { post_id: postId, content: content }, function(res) {
+    $.post('<?php echo BASE_URL; ?>/api/create_comment.php', { post_id: postId, content: content }, function(res) {
         if (res.success) {
             input.val('');
             // Simple reload of the feed or append comment logic here
-            $.get('api/get_posts.php', function(data) {
+            $.get('<?php echo BASE_URL; ?>/api/get_posts.php', function(data) {
                 $('#news-feed').html(data);
             });
         }
